@@ -327,48 +327,21 @@ sub sub_bhr_remove
 
 
 sub sub_bhr_list
-	{
-	my $whoblocked;
-	my $whyblocked;
-	my $whenepochblocked;
-	my $tillepochblocked;
-	my $whenblockedsec;
-	my $whenblockedmin;
-	my $whenblockedhour;
-	my $whenblockedday;
-	my $whenblockedmonth;
-	my $whenblockedyear;
-	my $form1counter;
-	my $blackholedip;
-	my ($officialbhdips_ref,$forrealbhdips_ref) = sub_get_ips ();
-	my @officialbhdips = @$officialbhdips_ref;
-	my @forrealbhdips = @$forrealbhdips_ref;
+{
 	#my @officialbhdips2 = @officialbhdips;
-	
-	foreach (@officialbhdips)
-		{
-		$form1counter ++;
-		if ($_ ne "")
-			{
-			$blackholedip = $_;
-			($whoblocked,$whyblocked,$whenepochblocked,$tillepochblocked) = sub_read_in_ipaddress_log ($blackholedip);
-			($whenblockedsec, $whenblockedmin, $whenblockedhour, $whenblockedday,$whenblockedmonth,$whenblockedyear) = (localtime($whenepochblocked))[0,1,2,3,4,5];
-			print ($blackholedip."-".$whoblocked."-".$whyblocked);
-			if ($tillepochblocked == 0)
-				{
-				print ("-0\n");
-				}
-			else
-				{
-				print ("-".$tillepochblocked."\n");
-				}
-				
-			}
-		} #end for each loop
-	return ;
-	
-	
-	} #close sub list
+	my $sql = q{
+		SELECT b.block_ipaddress, b.block_who, b.block_why, EXTRACT (EPOCH from l.blocklist_until)
+		FROM blocklog b, blocklist l
+		WHERE b.block_id = l.blocklist_id 
+	};
+	my $sth = $dbh->prepare($sql) or die $dbh->errstr;
+	$sth->execute() or die $dbh->errstr;
+	while (my @data = $sth->fetchrow_array) {
+        my ($ip, $who, $why, $until_at)  = @data;
+		print("$ip-$who-$why-$until_at\n");
+	}
+	return;
+}
 
 sub sub_bhr_reconcile
 	{
