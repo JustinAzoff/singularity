@@ -1,7 +1,7 @@
 Install postgresql (INSTALL.txt) and configure as such:
 
 # su - postgres
-$ createuser -DRS blackhole
+$ createuser -DRS -P blackhole
 $ createdb blackhole -O blackhole
 $ psql blackhole < /path/to/schema.sql
 
