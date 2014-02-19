@@ -2,22 +2,10 @@ use strict;
 use warnings;
 use 5.010;
  
-use Test::More tests => 7;
+use Test::More tests => 3;
 
-SKIP: {
-    eval {
-        require iputil;
-        iputil->import(qw(is_ipv4 is_ipv6 normalize_ip));
-    };
-    skip "perl version too old to test iputil", 7 if $@;
+use iputil qw(ip_version);
  
-    ok( is_ipv4("1.2.3.4")   == 1);
-    ok( is_ipv4("1.2.3.400") == 0);
-    ok( is_ipv4("2.3.4")     == 0);
-
-    ok( is_ipv6("2607:f8b0:4000:806::1014") == 1 );
-    ok( is_ipv6("260z:f8b0:4000:806::1014") == 0 );
-
-    is( normalize_ip("001.002.003.004"), "1.2.3.4");
-    is( normalize_ip("2600:0:0::aaaa"), "2600::aaaa");
-}
+is(ip_version("1.2.3.4"), 4);
+is(ip_version("2600::aaaa"), 6);
+is(ip_version("foo"), 0);

@@ -35,7 +35,6 @@
 
 use warnings;
 use strict;
-use Data::Validate::IP qw(is_ipv4 is_ipv6);
 #I dont think we are using NetAddr::IP
 #use NetAddr::IP;
 use Email::MIME;
@@ -44,7 +43,9 @@ use Net::DNS;
 use File::stat;
 use DBI;
 use Config::Simple;
+use iputil qw(ip_version);
 use dnsutil qw(reverse_lookup);
+use timeutil qw(expand_duration);
 
 
 #read in config options from an external file
@@ -73,20 +74,42 @@ my $dbh = DBI->connect("dbi:Pg:dbname=$db_name", "", "");
 
 my @months = ("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec");
 
+sub cli_add {
+	usage("You must specify a service name") if (!defined $ARGV[1]);
+	usage("You must specify an IP Address") if (!defined $ARGV[2]);
+	usage("You must specify a reason") if (!defined $ARGV[3]);
+
+	my $servicename = $ARGV[1];
+	my $ipaddress = $ARGV[2];
+	my $reason = $ARGV[3];
+	my $howlong = $ARGV[4];
+
+	my $ipversion = ip_version($ipaddress);
+	usage("Invalid IP Address") if (!$ipversion);
+	return sub_bhr_add($ipaddress, $servicename, $reason, $howlong);
+}
+
+sub usage
+{
+	my $extra = shift;
+	print "$extra\n" if $extra;
+	print <<USAGE;
+Usage:
+	$0 add Service_Name IPaddress "Reason" How_long_in_seconds
+	$0 remove Service_Name IPaddress "Reason" How_long_in_seconds
+	$0 query ip_address
+	$0 list
+	$0 reconcile
+	$0 cronjob
+	$0 digest
+USAGE
+	exit 1;
+}
+
 my $num_args = $#ARGV + 1;
 if (($num_args == 0) || ($num_args > 5))
 	{
-    print <<USAGE;
-Usage:
-    $0 add Service_Name IPaddress "Reason" How_long_in_seconds
-    $0 remove Service_Name IPaddress "Reason" How_long_in_seconds
-    $0 query ip_address
-    $0 list
-    $0 reconcile
-    $0 cronjob
-    $0 digest
-USAGE
-	exit 1;
+	usage();
 	}
 
 else # okay we have number of args in correct range, lets do something. Start by reading in function ARGV
@@ -98,79 +121,8 @@ else # okay we have number of args in correct range, lets do something. Start by
 
 	if ($scriptfunciton eq "add")
 		{
-		my $reason;
-		my $servicename;
-		my $howlong;
-		my $blocktimedescribed;
-		my $ipaddress;
-		if (!defined $ARGV[3])
-			{
-			print ("You must specify a reason\n");
-			}
-		else
-			{
-			$reason=$ARGV[3];
-			$reason =~ tr/-//d; #using dashes/hyphens in the BH log file for separators, need to remove from the reason
-			$reason =~ tr/,//d; #using commas in the individual log file for separators, need to remove from the reason
-			}
-		if (!defined $ARGV[1])
-			{
-			print ("You must specify a Username or Service Name\n");
-			}
-		else
-			{
-			$servicename=$ARGV[1];
-			$servicename =~ tr/-//d; #using dashes/hyphens in the BH log file for separators, need to remove from the reason
-			$servicename =~ tr/,//d; #using commas in the individual log file for separators, need to remove from the reason
-			}
-	
-		if (!defined $ARGV[4])
-			{
-			$howlong = 0; #indefinite
-			$blocktimedescribed = "indefinite";
-			}
-		elsif (sub_is_integer_string($ARGV[4]) == 0)
-			{
-			$howlong = 0; #indefinite
-			$blocktimedescribed = "indefinite";
-			}
-		elsif ($ARGV[4] == 0)
-			{
-			$howlong = 0; #indefinite
-			$blocktimedescribed = "indefinite";
-			}
-		else
-			{
-			$howlong=$ARGV[4]; #list in seconds;
-			$blocktimedescribed = ($howlong." Seconds");
-			}
-		if (!defined $ARGV[2])
-			{
-			print ("No IP provided\n");
-			}
-		else
-			{
-			$ipaddress=$ARGV[2];
-			if (my $ipversion = sub_what_ip_version($ipaddress))
-				{
-				if ($ipversion == 4)
-					{
-					sub_bhr_add($ipaddress,$servicename,$reason,$howlong,$blocktimedescribed,4)
-					}
-				elsif ($ipversion == 6)
-					{
-					sub_bhr_add($ipaddress,$servicename,$reason,$howlong,$blocktimedescribed,6)
-					}
-				else
-					{
-					}
-				}
-			else
-				{
-				print ("IP is invalid\n");
-				}
-			}
-		} #close add if
+		exit cli_add($ARGV);
+		}
 
 #remove function
 		elsif ($scriptfunciton eq "remove")
@@ -201,7 +153,7 @@ else # okay we have number of args in correct range, lets do something. Start by
 			else
 				{
 				$ipaddress=$ARGV[2];
-				if (my $ipversion = sub_what_ip_version($ipaddress))
+				if (my $ipversion = ip_version($ipaddress))
 					{
 					if ($ipversion == 4)
 						{
@@ -238,7 +190,7 @@ else # okay we have number of args in correct range, lets do something. Start by
 			else
 				{
 				sub_get_ips();
-				if (sub_what_ip_version($ARGV[1]))
+				if (ip_version($ARGV[1]))
 					{
 					if (sub_bhr_check_if_ip_blocked($ARGV[1]))
 						{
@@ -314,64 +266,55 @@ sub sub_bhr_add
 	my $ipaddress = shift;
 	my $servicename = shift;
 	my $reason = shift;
-	my $howlong = shift;
-	my $blocktimedescribed = shift;
-	my $ipversion = shift;
+	my $duration = shift;
 	my $endtime = "";		
-	if (sub_bhr_check_if_ip_blocked($ipaddress) == 0)
-		{
-		if (($howlong == 0) || ($howlong eq ""))
-			{
-			$endtime = 0;
-			}
-		elsif (sub_is_integer_string($howlong) == 0)
-			{
-			$endtime = 0;
-			}
-		else
-			{
-			$endtime = (time()+$howlong);
-			}
-		my $hostname = sub_reverse_lookup($ipaddress);
-		#database operations for adding to logs
-		#create the blocklog entry and return the block_id for use in creating blocklist entry
-		my $sql1 = 
-			q{
-			INSERT INTO blocklog (block_when,block_ipaddress,block_reverse,block_who,block_why) VALUES (to_timestamp(?),?,?,?,?) RETURNING block_id
-			};
-		my $sth1 = $dbh->prepare($sql1) or die $dbh->errstr;
-		$sth1->execute(time(),$ipaddress,$hostname,$servicename,$reason) or die $dbh->errstr;
-		my $ipid = $sth1->fetchrow();
-		my $sql2 =
+
+	my ($howlong, $blocktimedescribed) = eval_duration($duration);
+	my $ipversion = ip_version($ipaddress);
+
+	return 1 if (sub_bhr_check_if_ip_blocked($ipaddress));
+
+	if ($howlong == 0) {
+		$endtime = 0;
+	} else {
+		$endtime = (time()+$howlong);
+	}
+
+	my $hostname = reverse_lookup($ipaddress);
+	#database operations for adding to logs
+	#create the blocklog entry and return the block_id for use in creating blocklist entry
+	my $sql1 = 
 		q{
-		INSERT INTO blocklist (blocklist_id,blocklist_until) VALUES (?,to_timestamp(?))
+		INSERT INTO blocklog (block_when,block_ipaddress,block_reverse,block_who,block_why) VALUES (to_timestamp(?),?,?,?,?) RETURNING block_id
 		};
-		my $sth2 = $dbh->prepare($sql2) or die $dbh->errstr;
-		$sth2->execute($ipid,$endtime) or die $dbh->errstr;	
-		#end of database operations	
-		# create null route, config is now saved using the cronjob function
-		if ($ipversion == 4)
-			{
-			system("sudo /usr/bin/vtysh -c \"conf t\" -c \"ip route $ipaddress 255.255.255.255 null0\"");
-			}
-		elsif ($ipversion == 6)
-			{
-			print ("Place holder for IPv6 route command\n");
-			}
-		else
-			{
-			}
-			
-		if ($logtosyslog)
-			{
-			system("logger ".$logprepend."_BLOCK IP=$ipaddress HOSTNAME=$hostname WHO=$servicename WHY=$reason UNTIL=$endtime");
-			}
+	my $sth1 = $dbh->prepare($sql1) or die $dbh->errstr;
+	$sth1->execute(time(),$ipaddress,$hostname,$servicename,$reason) or die $dbh->errstr;
+	my $ipid = $sth1->fetchrow();
+	my $sql2 =
+	q{
+	INSERT INTO blocklist (blocklist_id,blocklist_until) VALUES (?,to_timestamp(?))
+	};
+	my $sth2 = $dbh->prepare($sql2) or die $dbh->errstr;
+	$sth2->execute($ipid,$endtime) or die $dbh->errstr;	
+	#end of database operations	
+	# create null route, config is now saved using the cronjob function
+	if ($ipversion == 4)
+		{
+		system("sudo /usr/bin/vtysh -c \"conf t\" -c \"ip route $ipaddress 255.255.255.255 null0\"");
+		}
+	elsif ($ipversion == 6)
+		{
+		print ("Place holder for IPv6 route command\n");
 		}
 	else
 		{
-		print("<p>Nothing to do IP already blackholed</p>\n");
 		}
-	} #close sub add
+		
+	if ($logtosyslog)
+		{
+		system("logger ".$logprepend."_BLOCK IP=$ipaddress HOSTNAME=$hostname WHO=$servicename WHY=$reason UNTIL=$endtime");
+		}
+	}
 
 sub sub_bhr_remove	
 	{
@@ -529,7 +472,7 @@ sub sub_bhr_reconcile
 		{
 		$blackholedip = $_;
 		print("<p>Adding ".$blackholedip." to the list</p>\n");
-		my $hostname = sub_reverse_lookup($blackholedip);
+		my $hostname = reverse_lookup($blackholedip);
 		#database operations for adding to logs
 		my $sql1 = 
 			q{
@@ -575,7 +518,7 @@ sub sub_bhr_cronjob
 	$sth1->execute() or die $dbh->errstr;
 	while ($unblockip = $sth1->fetchrow())
 	{
-		my $ipversion = sub_what_ip_version($unblockip);
+		my $ipversion = ip_version($unblockip);
 		sub_bhr_remove($unblockip,"Block Time Expired","cronjob",$ipversion);
 	};
 	#end of database operations	
@@ -882,15 +825,6 @@ sub sub_read_in_ipaddress_log
 	return ($blockedipinfo[0],$blockedipinfo[1],$blockedipinfo[2],$blockedipinfo[3]);
 	} #close sub read in IP address log
 
-sub sub_what_ip_version
-	{
-	my $ipaddress = shift;
-	#check to see what version of IP, return 0 if the IP is invalid
-    return 4 if is_ipv4($ipaddress);
-    return 6 if is_ipv6($ipaddress);
-    return 0;
-	}
-
 
 sub sub_is_integer_string
 	{
@@ -908,9 +842,12 @@ sub sub_is_integer_string
 		}
 	} #close sub integer
 
-sub sub_reverse_lookup
-	{
-	my $ipaddress = shift;
-    return reverse_lookup($ipaddress) || "no reverse found";
-	} #end sub_reverse_lookup sub
+sub eval_duration
+    {
+    my $duration = shift;
+    return (0, "indefinite") if(!defined($duration));
 
+    my $seconds = expand_duration($duration);
+
+    return ($seconds, $duration);
+    }
