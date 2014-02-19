@@ -253,6 +253,7 @@ sub sub_bhr_add
 
 	my $hostname = reverse_lookup($ipaddress);
 	#database operations for adding to logs
+        $dbh->begin_work;
 	#create the blocklog entry and return the block_id for use in creating blocklist entry
 	my $sql1 = 
 		q{
@@ -267,6 +268,7 @@ sub sub_bhr_add
 	};
 	my $sth2 = $dbh->prepare($sql2) or die $dbh->errstr;
 	$sth2->execute($ipid,$endtime) or die $dbh->errstr;	
+        $dbh->commit;
 	#end of database operations	
 	# create null route, config is now saved using the cronjob function
 
@@ -290,6 +292,7 @@ sub sub_bhr_remove
 
 	#database operations for unblock
 	#first find blocklog.block_id associated with the IP
+        $dbh->begin_work;
 	my $sql1 = 
 		    q{
 		    select blocklog.block_id
@@ -313,6 +316,7 @@ sub sub_bhr_remove
 	};
 	my $sth3 = $dbh->prepare($sql3) or die $dbh->errstr;
 	$sth3->execute($blockid) or die $dbh->errstr;	
+        $dbh->commit;
 	#end of database operations	for unblock
 	# delete null route, config is now saved using the cronjob function
 
