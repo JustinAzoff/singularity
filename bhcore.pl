@@ -46,6 +46,7 @@ use Config::Simple;
 use iputil qw(ip_version);
 use dnsutil qw(reverse_lookup);
 use timeutil qw(expand_duration);
+use quagga;
 
 
 #read in config options from an external file
@@ -298,17 +299,9 @@ sub sub_bhr_add
 	$sth2->execute($ipid,$endtime) or die $dbh->errstr;	
 	#end of database operations	
 	# create null route, config is now saved using the cronjob function
-	if ($ipversion == 4)
-		{
-		system("sudo /usr/bin/vtysh -c \"conf t\" -c \"ip route $ipaddress 255.255.255.255 null0\"");
-		}
-	elsif ($ipversion == 6)
-		{
-		print ("Place holder for IPv6 route command\n");
-		}
-	else
-		{
-		}
+
+    my $q = quagga->new();
+    $q->nullroute_add($ipaddress);
 		
 	if ($logtosyslog)
 		{
