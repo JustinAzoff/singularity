@@ -104,6 +104,20 @@ sub cli_remove {
 	sub_bhr_remove($ipaddress,$reason,$servicename);
 }
 
+sub cli_query {
+	usage("You must specify an IP Address") if (!defined $ARGV[1]);
+	my $ipaddress = $ARGV[1];
+	my $ipversion = ip_version($ipaddress);
+	usage("Invalid IP Address") if (!$ipversion);
+        if (!sub_bhr_check_if_ip_blocked($ipaddress)) {
+                print "IP not blackholed\n";
+                return 1;
+        }
+
+        my ($whoblocked,$whyblocked,$whenepochblocked,$tillepochblocked) = sub_read_in_ipaddress_log ($ARGV[1]);
+        print($whoblocked." - ".$whyblocked." - ".$whenepochblocked." - ".$tillepochblocked."\n");
+}
+
 sub usage
 {
 	my $extra = shift;
@@ -121,97 +135,23 @@ USAGE
 	exit 1;
 }
 
-my $num_args = $#ARGV + 1;
-if (($num_args == 0) || ($num_args > 5))
-	{
-	usage();
-	}
+sub main
+{
+	my $num_args = $#ARGV + 1;
+	usage("Missing arguments") if (($num_args == 0) || ($num_args > 5));
 
-else # okay we have number of args in correct range, lets do something. Start by reading in function ARGV
-	{
-	my $scriptfunciton=$ARGV[0];
-	
-# figure out what function to perform and call the correct sub function.
-#ADD function
+	my $func = $ARGV[0];
+	return cli_add($ARGV)      if $func eq "add";
+	return cli_remove($ARGV)   if $func eq "remove";
+	return sub_bhr_list()      if $func eq "list";
+	return cli_query($ARGV)    if $func eq "query";
+	return sub_bhr_reconcile() if $func eq "reconcile";
+	return sub_bhr_cronjob()   if $func eq "cronjob";
+	return sub_bhr_digest()    if $func eq "digest";
 
-	if ($scriptfunciton eq "add")
-		{
-		exit cli_add($ARGV);
-		}
-
-#remove function
-		elsif ($scriptfunciton eq "remove")
-		{
-		exit cli_remove($ARGV);
-		} #close remove if
-
-#LIST function
-		elsif ($scriptfunciton eq "list")
-		{
-		sub_bhr_list();
-		}	
-
-#QUERY fucntion
-		elsif ($scriptfunciton eq "query")
-			{
-			if (!defined $ARGV[1])
-				{
-				print ("No IP provided\n");
-				}
-			else
-				{
-				sub_get_ips();
-				if (ip_version($ARGV[1]))
-					{
-					if (sub_bhr_check_if_ip_blocked($ARGV[1]))
-						{
-						my ($whoblocked,$whyblocked,$whenepochblocked,$tillepochblocked) = sub_read_in_ipaddress_log ($ARGV[1]);
-						print($whoblocked." - ".$whyblocked." - ".$whenepochblocked." - ".$tillepochblocked."\n");
-						}
-					else
-						{
-						print("IP not blackholed\n");
-						}
-					}
-				else
-					{
-					print ("IP is invalid\n");
-					}
-				}
-			}
-		
-#RECONCILE function
-		elsif ($scriptfunciton eq "reconcile")
-		{
-		sub_bhr_reconcile();
-		}	
-
-#CRONJOB function
-		elsif ($scriptfunciton eq "cronjob")
-		{
-		sub_bhr_cronjob();
-		}
-
-#digest function
-		elsif ($scriptfunciton eq "digest")
-		{
-		sub_bhr_digest();
-		}
-
-#no valid function was provided
-		
-		else
-		{
-		print ("No function performed\n");
-		}
-
-#close database	
-		$dbh->disconnect();
-		
-	} #close the function picker
-	
-	
-
+	usage("Invalid Function $func");
+	$dbh->disconnect();
+}
 
 sub sub_bhr_check_if_ip_blocked
 	{
@@ -344,7 +284,7 @@ sub sub_bhr_list
         my ($ip, $who, $why, $until_at)  = @data;
 		print("$ip-$who-$why-$until_at\n");
 	}
-	return;
+	return 0;
 }
 
 sub sub_bhr_reconcile
@@ -775,3 +715,5 @@ sub eval_duration
 
     return ($seconds, $duration);
     }
+
+exit(main());
