@@ -3,9 +3,6 @@ use strict;
 use warnings;
 use iputil qw(ip_version);
 
-use strict;
-use warnings;
-
 use base 'Exporter';
 our @EXPORT_OK = qw(new gen_nullroute_cmd);
 
