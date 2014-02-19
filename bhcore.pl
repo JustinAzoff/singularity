@@ -312,7 +312,8 @@ sub sub_bhr_add
 		
 	if ($logtosyslog)
 		{
-		system("logger ".$logprepend."_BLOCK IP=$ipaddress HOSTNAME=$hostname WHO=$servicename WHY=$reason UNTIL=$endtime");
+		my $log_hostname = $hostname || "null";
+		system("logger ".$logprepend."_BLOCK IP=$ipaddress HOSTNAME=$log_hostname WHO=$servicename WHY=$reason UNTIL=$endtime");
 		}
 	}
 
