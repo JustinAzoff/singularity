@@ -78,13 +78,13 @@ if (($num_args == 0) || ($num_args > 5))
 	{
     print <<USAGE;
 Usage:
-    add Service_Name IPaddress "Reason" How_long_in_seconds
-    remove Service_Name IPaddress "Reason" How_long_in_seconds
-    query ip_address
-    list
-    reconcile
-    cronjob
-    digest
+    $0 add Service_Name IPaddress "Reason" How_long_in_seconds
+    $0 remove Service_Name IPaddress "Reason" How_long_in_seconds
+    $0 query ip_address
+    $0 list
+    $0 reconcile
+    $0 cronjob
+    $0 digest
 USAGE
 	exit 1;
 	}
