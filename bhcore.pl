@@ -90,6 +90,20 @@ sub cli_add {
 	return sub_bhr_add($ipaddress, $servicename, $reason, $howlong);
 }
 
+sub cli_remove {
+	usage("You must specify a service name") if (!defined $ARGV[1]);
+	usage("You must specify an IP Address") if (!defined $ARGV[2]);
+	usage("You must specify a reason") if (!defined $ARGV[3]);
+	my $servicename = $ARGV[1];
+	my $ipaddress = $ARGV[2];
+	my $reason = $ARGV[3];
+
+	my $ipversion = ip_version($ipaddress);
+	usage("Invalid IP Address") if (!$ipversion);
+
+	sub_bhr_remove($ipaddress,$reason,$servicename);
+}
+
 sub usage
 {
 	my $extra = shift;
@@ -128,51 +142,7 @@ else # okay we have number of args in correct range, lets do something. Start by
 #remove function
 		elsif ($scriptfunciton eq "remove")
 		{
-			my $reason;
-			my $servicename;
-			my $ipaddress;
-			if (!defined $ARGV[3])
-				{
-				print ("You must specify a reason\n");
-				}
-			else
-				{
-				$reason=$ARGV[3];
-				}
-			if (!defined $ARGV[1])
-				{
-				print ("You must specify a Username or Service Name\n");
-				}
-			else
-				{
-				$servicename=$ARGV[1];
-				}
-			if (!defined $ARGV[2])
-				{
-				print ("No IP provided\n");
-				}
-			else
-				{
-				$ipaddress=$ARGV[2];
-				if (my $ipversion = ip_version($ipaddress))
-					{
-					if ($ipversion == 4)
-						{
-						sub_bhr_remove($ipaddress,$reason,$servicename,4)
-						}
-					elsif ($ipversion == 6)
-						{
-						sub_bhr_remove($ipaddress,$reason,$servicename,6)
-						}
-					else
-						{
-						}
-					}
-				else
-					{
-					print ("IP is invalid\n");
-					}
-				}
+		exit cli_remove($ARGV);
 		} #close remove if
 
 #LIST function
@@ -300,8 +270,8 @@ sub sub_bhr_add
 	#end of database operations	
 	# create null route, config is now saved using the cronjob function
 
-    my $q = quagga->new();
-    $q->nullroute_add($ipaddress);
+	my $q = quagga->new();
+	$q->nullroute_add($ipaddress);
 		
 	if ($logtosyslog)
 		{
@@ -315,61 +285,45 @@ sub sub_bhr_remove
 	my $ipaddress = shift;
 	my $reason = shift;
 	my $servicename = shift;
-	my $ipversion = shift;
-	if (sub_bhr_check_if_ip_blocked($ipaddress) == 1)
-		{
+	my $ipversion = ip_version($ipaddress);
+	return 1 if (!sub_bhr_check_if_ip_blocked($ipaddress));
 
-		#database operations for unblock
-		#first find blocklog.block_id associated with the IP
-		my $sql1 = 
-			q{
-			select blocklog.block_id
-			from blocklist
-			inner join blocklog
-			on blocklog.block_id = blocklist.blocklist_id
-			where blocklog.block_ipaddress = ?
-			};
-		my $sth1 = $dbh->prepare($sql1) or die $dbh->errstr;
-		$sth1->execute($ipaddress) or die $dbh->errstr;
-		my $blockid = $sth1->fetchrow();
-		#insert a log line for removing - references the original block_id
-		my $sql2 = 
-			q{
-			INSERT INTO unblocklog (unblock_id,unblock_when,unblock_who,unblock_why) VALUES (?,to_timestamp(?),?,?)
-			};
-		my $sth2 = $dbh->prepare($sql2) or die $dbh->errstr;
-		$sth2->execute($blockid,time(),$servicename,$reason) or die $dbh->errstr;
-		#remove entry from blockedlist
-		my $sql3 =
-			q{
-			DELETE from blocklist where blocklist_id = ?
-			};
-		my $sth3 = $dbh->prepare($sql3) or die $dbh->errstr;
-		$sth3->execute($blockid) or die $dbh->errstr;	
-		#end of database operations	for unblock
-		# delete null route, config is now saved using the cronjob function
-		if ($ipversion == 4)
-			{
-			system("sudo /usr/bin/vtysh -c \"conf t\" -c \"no ip route $ipaddress 255.255.255.255 null0\"");
-			}
-		elsif ($ipversion == 6)
-			{
-			print ("Place holder for IPv6 route command\n");
-			}
-		else
-			{
-			}
-		
-		if ($logtosyslog)
-			{
-			system("logger ".$logprepend."_UNBLOCK IP=$ipaddress WHO=$servicename WHY=$reason");
-			}
-		}
-	else
-		{
-		print("<p>Nothing to do IP not blackholed<p>\n");
-		}
-	} #close sub remove
+	#database operations for unblock
+	#first find blocklog.block_id associated with the IP
+	my $sql1 = 
+		    q{
+		    select blocklog.block_id
+		    from blocklist
+		    inner join blocklog
+		    on blocklog.block_id = blocklist.blocklist_id
+		    where blocklog.block_ipaddress = ?
+		    };
+	my $sth1 = $dbh->prepare($sql1) or die $dbh->errstr;
+	$sth1->execute($ipaddress) or die $dbh->errstr;
+	my $blockid = $sth1->fetchrow();
+	#insert a log line for removing - references the original block_id
+	my $sql2 = q{
+		INSERT INTO unblocklog (unblock_id,unblock_when,unblock_who,unblock_why) VALUES (?,to_timestamp(?),?,?)
+	};
+	my $sth2 = $dbh->prepare($sql2) or die $dbh->errstr;
+	$sth2->execute($blockid,time(),$servicename,$reason) or die $dbh->errstr;
+	#remove entry from blockedlist
+	my $sql3 = q{
+		DELETE from blocklist where blocklist_id = ?
+	};
+	my $sth3 = $dbh->prepare($sql3) or die $dbh->errstr;
+	$sth3->execute($blockid) or die $dbh->errstr;	
+	#end of database operations	for unblock
+	# delete null route, config is now saved using the cronjob function
+
+	my $q = quagga->new();
+	$q->nullroute_remove($ipaddress);
+	
+	if ($logtosyslog)
+	            {
+	            system("logger ".$logprepend."_UNBLOCK IP=$ipaddress WHO=$servicename WHY=$reason");
+	            }
+	}
 
 
 sub sub_bhr_list
@@ -512,8 +466,7 @@ sub sub_bhr_cronjob
 	$sth1->execute() or die $dbh->errstr;
 	while ($unblockip = $sth1->fetchrow())
 	{
-		my $ipversion = ip_version($unblockip);
-		sub_bhr_remove($unblockip,"Block Time Expired","cronjob",$ipversion);
+		sub_bhr_remove($unblockip,"Block Time Expired","cronjob");
 	};
 	#end of database operations	
 	
