@@ -76,11 +76,19 @@ my @months = ("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov",
 my $num_args = $#ARGV + 1;
 if (($num_args == 0) || ($num_args > 5))
 	{
-	print "\nUsage: add|remove|list|query|reconcile|cronjob|digest Service_Name IPaddress \"Reason\"\(In quotes if more then one word) How_long_in_seconds\n";
-	print "For Add or Remove must provide servicename, IPaddress, and reason\n";
-	print "For query only provide IPaddress\n";
-	exit;
+    print <<USAGE;
+Usage:
+    add Service_Name IPaddress "Reason" How_long_in_seconds
+    remove Service_Name IPaddress "Reason" How_long_in_seconds
+    query ip_address
+    list
+    reconcile
+    cronjob
+    digest
+USAGE
+	exit 1;
 	}
+
 else # okay we have number of args in correct range, lets do something. Start by reading in function ARGV
 	{
 	my $scriptfunciton=$ARGV[0];
