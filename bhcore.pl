@@ -72,7 +72,6 @@ my $dbh = DBI->connect("dbi:Pg:dbname=$db_name", "", "");
 
 
 my @months = ("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec");
-my $date = localtime;
 
 my $num_args = $#ARGV + 1;
 if (($num_args == 0) || ($num_args > 5))
