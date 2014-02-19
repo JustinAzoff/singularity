@@ -23,3 +23,8 @@ create table blocklist (
     blocklist_id bigint primary key references blocklog(block_id),
     blocklist_until timestamp not null
 );
+
+ALTER TABLE public.blocklist OWNER TO blackhole;
+ALTER TABLE public.blocklog OWNER TO blackhole;
+ALTER TABLE public.blocklog_block_id_seq OWNER TO blackhole;
+ALTER TABLE public.unblocklog OWNER TO blackhole;
