@@ -8,6 +8,8 @@ create table blocklog (
     block_notified boolean DEFAULT false
 );
 
+create index idx_blocklog_ipaddress on blocklog(block_ipaddress);
+
 create table unblocklog (
     unblock_id bigint primary key references blocklog(block_id),
     unblock_when timestamp not null,
