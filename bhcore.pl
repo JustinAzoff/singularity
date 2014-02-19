@@ -44,6 +44,7 @@ use Net::DNS;
 use File::stat;
 use DBI;
 use Config::Simple;
+use dnsutil qw(reverse_lookup);
 
 
 #read in config options from an external file
@@ -912,30 +913,6 @@ sub sub_is_integer_string
 sub sub_reverse_lookup
 	{
 	my $ipaddress = shift;
-	my $hostname = "";
-	if ($ipaddress ne "")
-		{
-		my $res = Net::DNS::Resolver->new;
-		# create the reverse lookup DNS name (note that the octets in the IP address need to be reversed).
-		my $target_IP = join('.', reverse split(/\./, $ipaddress)).".in-addr.arpa";
-		my $query = $res->query("$target_IP", "PTR");
-		if ($query) 
-			{
-			foreach my $rr ($query->answer)
-				{
-				next unless $rr->type eq "PTR";
-				$hostname = (substr($rr->rdatastr,0,-1));
-				}
-			}
-		else
-			{
-			$hostname = "no reverse found";
-			}
-		}
-	else
-		{
-		$hostname = "no reverse found";
-		}
-	return $hostname
+    return reverse_lookup($ipaddress) || "no reverse found";
 	} #end sub_reverse_lookup sub
 
