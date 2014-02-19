@@ -879,19 +879,10 @@ sub sub_what_ip_version
 	{
 	my $ipaddress = shift;
 	#check to see what version of IP, return 0 if the IP is invalid
-	if (is_ipv4($ipaddress))
-		{
-		return 4;
-		}
-	elsif (is_ipv6($ipaddress))
-		{
-		return 6;
-		}
-	else
-		{
-		return 0;
-		}
-	} #close sub what ip version
+    return 4 if is_ipv4($ipaddress);
+    return 6 if is_ipv6($ipaddress);
+    return 0;
+	}
 
 
 sub sub_is_integer_string
