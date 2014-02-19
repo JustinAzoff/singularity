@@ -1,5 +1,5 @@
 #!/bin/sh
-yum install -y postgresql postgresql-server perl-DBD-Pg
+yum install -y postgresql postgresql-server perl-DBD-Pg perl-Test-Harness perl-Test-Simple
 service postgresql initdb
 service postgresql start
 
