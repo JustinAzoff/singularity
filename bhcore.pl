@@ -49,7 +49,7 @@ use dnsutil qw(reverse_lookup);
 
 #read in config options from an external file
 #config file location
-my $configfile = "/services/blackhole/bin/bhr.cfg";
+my $configfile = $ENV{BHR_CFG} || "/services/blackhole/bin/bhr.cfg";
 my $config = new Config::Simple($configfile);
 my $logtosyslog = $config->param('logtosyslog');
 my $logprepend = $config->param('logprepend');
