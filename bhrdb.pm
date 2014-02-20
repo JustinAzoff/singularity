@@ -85,8 +85,8 @@ sub block {
 }
 
 sub unblock {
-	my ($self, $ip, $reason, $service) = @_;
-	return 1 if (!self->is_ip_blocked($ip));
+	my ($self, $ip, $service, $reason) = @_;
+	return 1 if (!$self->is_ip_blocked($ip));
 	my $dbh = $self->{dbh};
 	$dbh->begin_work;
 	my $sql1 = 
@@ -117,16 +117,34 @@ sub unblock {
 
 sub list {
 	my ($self) = @_;
-	my $dbh = $self->{dbh};
 	my $sql = q{
 		SELECT b.block_ipaddress as ip, b.block_who as who, b.block_why as why, EXTRACT (EPOCH from l.blocklist_until) as until
 		FROM blocklog b, blocklist l
 		WHERE b.block_id = l.blocklist_id 
 	};
-	my $sth = $dbh->prepare($sql) or die $dbh->errstr;
-	$sth->execute() or die $dbh->errstr;
-	return $sth->fetchall_arrayref({});
+	return $self->fetchall_arrayref($sql);
 }
+
+sub query {
+	my ($self, $ip) = @_;
+	#database read in information for a specific IP
+	my $dbh = $self->{dbh};
+	my $sql =
+		q{
+		select blocklog.block_who as who ,blocklog.block_why as why,
+		EXTRACT (EPOCH from blocklog.block_when) as when, EXTRACT (EPOCH from blocklist.blocklist_until) as until
+		from blocklist
+		inner join blocklog
+		on blocklog.block_id = blocklist.blocklist_id
+		where blocklog.block_ipaddress = ?
+		};
+	my $sth = $dbh->prepare($sql) or die $dbh->errstr;
+	$sth->execute($ip) or die $dbh->errstr;
+	return $sth->fetchrow_hashref();
+}
+
+
+
 sub delete {
 	my ($self, $ip) = @_;
 	#figure out the id for the active block

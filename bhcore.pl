@@ -43,11 +43,12 @@ use Net::DNS;
 use File::stat;
 use DBI;
 use Config::Simple;
+use bhrmgr qw(BHRMGR);
+use bhrdb qw(BHRDB);
 use iputil qw(ip_version);
 use dnsutil qw(reverse_lookup);
 use timeutil qw(expand_duration);
 use quagga;
-
 
 #read in config options from an external file
 #config file location
@@ -75,47 +76,65 @@ my $dbh = DBI->connect("dbi:Pg:dbname=$db_name", "", "");
 
 my @months = ("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec");
 
-sub cli_add {
-	usage("You must specify a service name") if (!defined $ARGV[1]);
-	usage("You must specify an IP Address") if (!defined $ARGV[2]);
-	usage("You must specify a reason") if (!defined $ARGV[3]);
+use Data::Dumper;
 
-	my $servicename = $ARGV[1];
-	my $ipaddress = $ARGV[2];
-	my $reason = $ARGV[3];
-	my $howlong = $ARGV[4];
+sub cli_add
+{
+	my ($mgr, $args) = @_;
+	usage("You must specify a service name") if (!defined $args->[1]);
+	usage("You must specify an IP Address") if (!defined $args->[2]);
+	usage("You must specify a reason") if (!defined $args->[3]);
+
+	my $servicename = $args->[1];
+	my $ipaddress = $args->[2];
+	my $reason = $args->[3];
+	my $howlong = $args->[4];
 
 	my $ipversion = ip_version($ipaddress);
 	usage("Invalid IP Address") if (!$ipversion);
-	return sub_bhr_add($ipaddress, $servicename, $reason, $howlong);
+    
+	return $mgr->add_block($ipaddress, $servicename, $reason, $howlong);
 }
 
-sub cli_remove {
-	usage("You must specify a service name") if (!defined $ARGV[1]);
-	usage("You must specify an IP Address") if (!defined $ARGV[2]);
-	usage("You must specify a reason") if (!defined $ARGV[3]);
-	my $servicename = $ARGV[1];
-	my $ipaddress = $ARGV[2];
-	my $reason = $ARGV[3];
+sub cli_remove
+{
+	my ($mgr, $args) = @_;
+	usage("You must specify a service name") if (!defined $args->[1]);
+	usage("You must specify an IP Address") if (!defined $args->[2]);
+	usage("You must specify a reason") if (!defined $args->[3]);
+	my $servicename = $args->[1];
+	my $ipaddress = $args->[2];
+	my $reason = $args->[3];
 
 	my $ipversion = ip_version($ipaddress);
 	usage("Invalid IP Address") if (!$ipversion);
 
-	sub_bhr_remove($ipaddress,$reason,$servicename);
+	return $mgr->remove_block($ipaddress,$reason,$servicename);
+}
+
+sub cli_list
+{
+	my ($mgr) = @_;
+	#my @officialbhdips2 = @officialbhdips;
+	my $rows = $mgr->{db}->list;
+	foreach my $row (@{ $rows }) {
+		print "$row->{ip}-$row->{who}-$row->{why}-$row->{until}\n";
+	}
+	return 0;
 }
 
 sub cli_query {
-	usage("You must specify an IP Address") if (!defined $ARGV[1]);
-	my $ipaddress = $ARGV[1];
+	my ($mgr, $args) = @_;
+	usage("You must specify an IP Address") if (!defined $args->[1]);
+	my $ipaddress = $args->[1];
 	my $ipversion = ip_version($ipaddress);
 	usage("Invalid IP Address") if (!$ipversion);
-        if (!sub_bhr_check_if_ip_blocked($ipaddress)) {
+	my $info = $mgr->{db}->query($ipaddress);
+	if(!$info) {
                 print "IP not blackholed\n";
                 return 1;
         }
-
-        my ($whoblocked,$whyblocked,$whenepochblocked,$tillepochblocked) = sub_read_in_ipaddress_log ($ARGV[1]);
-        print($whoblocked." - ".$whyblocked." - ".$whenepochblocked." - ".$tillepochblocked."\n");
+	print "$info->{who} - $info->{why} - $info->{when} - $info->{until}\n";
 }
 
 sub usage
@@ -140,151 +159,22 @@ sub main
 	my $num_args = $#ARGV + 1;
 	usage("Missing arguments") if (($num_args == 0) || ($num_args > 5));
 
+	my $configfile = $ENV{BHR_CFG} || "/services/blackhole/bin/bhr.cfg";
+	my %config;
+	Config::Simple->import_from('bhr.cfg', \%config);
+	my $mgr = BHRMGR->new(config => \%config);
+
 	my $func = $ARGV[0];
-	return cli_add($ARGV)      if $func eq "add";
-	return cli_remove($ARGV)   if $func eq "remove";
-	return sub_bhr_list()      if $func eq "list";
-	return cli_query($ARGV)    if $func eq "query";
-	return sub_bhr_reconcile() if $func eq "reconcile";
-	return sub_bhr_cronjob()   if $func eq "cronjob";
-	return sub_bhr_digest()    if $func eq "digest";
+	return cli_add($mgr, \@ARGV)      if $func eq "add";
+	return cli_remove($mgr, \@ARGV)   if $func eq "remove";
+	return cli_list($mgr)             if $func eq "list";
+	return cli_query($mgr, \@ARGV)    if $func eq "query";
+	return sub_bhr_reconcile()       if $func eq "reconcile";
+	return sub_bhr_cronjob()         if $func eq "cronjob";
+	return sub_bhr_digest()          if $func eq "digest";
 
 	usage("Invalid Function $func");
 	$dbh->disconnect();
-}
-
-sub sub_bhr_check_if_ip_blocked
-	{
-	my $ipaddress = shift;
-	my $sql1 =
-			q{
-			select count(*)
-			from blocklist
-			inner join blocklog
-			on blocklog.block_id = blocklist.blocklist_id
-			where blocklog.block_ipaddress = ?
-			};
-	my $sth1 = $dbh->prepare($sql1) or die $dbh->errstr;
-	$sth1->execute($ipaddress) or die $dbh->errstr;
-	my $ipexists = $sth1->fetchrow();
-	return $ipexists;
-}	#end of check if IP blocked sub
-	
-	
-	
-sub sub_bhr_add
-	{
-	my $ipaddress = shift;
-	my $servicename = shift;
-	my $reason = shift;
-	my $duration = shift;
-	my $endtime = "";		
-
-	my ($howlong, $blocktimedescribed) = eval_duration($duration);
-	my $ipversion = ip_version($ipaddress);
-
-	return 1 if (sub_bhr_check_if_ip_blocked($ipaddress));
-
-	if ($howlong == 0) {
-		$endtime = 0;
-	} else {
-		$endtime = (time()+$howlong);
-	}
-
-	my $hostname = reverse_lookup($ipaddress);
-	#database operations for adding to logs
-        $dbh->begin_work;
-	#create the blocklog entry and return the block_id for use in creating blocklist entry
-	my $sql1 = 
-		q{
-		INSERT INTO blocklog (block_when,block_ipaddress,block_reverse,block_who,block_why) VALUES (to_timestamp(?),?,?,?,?) RETURNING block_id
-		};
-	my $sth1 = $dbh->prepare($sql1) or die $dbh->errstr;
-	$sth1->execute(time(),$ipaddress,$hostname,$servicename,$reason) or die $dbh->errstr;
-	my $ipid = $sth1->fetchrow();
-	my $sql2 =
-	q{
-	INSERT INTO blocklist (blocklist_id,blocklist_until) VALUES (?,to_timestamp(?))
-	};
-	my $sth2 = $dbh->prepare($sql2) or die $dbh->errstr;
-	$sth2->execute($ipid,$endtime) or die $dbh->errstr;	
-        $dbh->commit;
-	#end of database operations	
-	# create null route, config is now saved using the cronjob function
-
-	my $q = quagga->new();
-	$q->nullroute_add($ipaddress);
-		
-	if ($logtosyslog)
-		{
-		my $log_hostname = $hostname || "null";
-		system("logger ".$logprepend."_BLOCK IP=$ipaddress HOSTNAME=$log_hostname WHO=$servicename WHY=$reason UNTIL=$endtime");
-		}
-	}
-
-sub sub_bhr_remove	
-	{
-	my $ipaddress = shift;
-	my $reason = shift;
-	my $servicename = shift;
-	my $ipversion = ip_version($ipaddress);
-	return 1 if (!sub_bhr_check_if_ip_blocked($ipaddress));
-
-	#database operations for unblock
-	#first find blocklog.block_id associated with the IP
-        $dbh->begin_work;
-	my $sql1 = 
-		    q{
-		    select blocklog.block_id
-		    from blocklist
-		    inner join blocklog
-		    on blocklog.block_id = blocklist.blocklist_id
-		    where blocklog.block_ipaddress = ?
-		    };
-	my $sth1 = $dbh->prepare($sql1) or die $dbh->errstr;
-	$sth1->execute($ipaddress) or die $dbh->errstr;
-	my $blockid = $sth1->fetchrow();
-	#insert a log line for removing - references the original block_id
-	my $sql2 = q{
-		INSERT INTO unblocklog (unblock_id,unblock_when,unblock_who,unblock_why) VALUES (?,to_timestamp(?),?,?)
-	};
-	my $sth2 = $dbh->prepare($sql2) or die $dbh->errstr;
-	$sth2->execute($blockid,time(),$servicename,$reason) or die $dbh->errstr;
-	#remove entry from blockedlist
-	my $sql3 = q{
-		DELETE from blocklist where blocklist_id = ?
-	};
-	my $sth3 = $dbh->prepare($sql3) or die $dbh->errstr;
-	$sth3->execute($blockid) or die $dbh->errstr;	
-        $dbh->commit;
-	#end of database operations	for unblock
-	# delete null route, config is now saved using the cronjob function
-
-	my $q = quagga->new();
-	$q->nullroute_remove($ipaddress);
-	
-	if ($logtosyslog)
-	            {
-	            system("logger ".$logprepend."_UNBLOCK IP=$ipaddress WHO=$servicename WHY=$reason");
-	            }
-	}
-
-
-sub sub_bhr_list
-{
-	#my @officialbhdips2 = @officialbhdips;
-	my $sql = q{
-		SELECT b.block_ipaddress, b.block_who, b.block_why, EXTRACT (EPOCH from l.blocklist_until)
-		FROM blocklog b, blocklist l
-		WHERE b.block_id = l.blocklist_id 
-	};
-	my $sth = $dbh->prepare($sql) or die $dbh->errstr;
-	$sth->execute() or die $dbh->errstr;
-	while (my @data = $sth->fetchrow_array) {
-        my ($ip, $who, $why, $until_at)  = @data;
-		print("$ip-$who-$why-$until_at\n");
-	}
-	return 0;
 }
 
 sub sub_bhr_reconcile
@@ -356,7 +246,6 @@ sub sub_bhr_reconcile
 		}
 	
 	}#close sub reconcile
-
 
 sub sub_bhr_cronjob
 	{
@@ -670,24 +559,6 @@ sub sub_get_ips
 	#return references to the arrays of IPs
 	return (\@subgetipsofficialbhdips,\@subgetipsforrealbhdips);
 	} #close get IPs
-
-
-sub sub_read_in_ipaddress_log
-	{
-	#database read in information for a specific IP
-	my $sql1 =
-		q{
-		select blocklog.block_who,blocklog.block_why,EXTRACT (EPOCH from blocklog.block_when),EXTRACT (EPOCH from blocklist.blocklist_until)
-		from blocklist
-		inner join blocklog
-		on blocklog.block_id = blocklist.blocklist_id
-		where blocklog.block_ipaddress = ?
-		};
-	my $sth1 = $dbh->prepare($sql1) or die $dbh->errstr;
-	$sth1->execute($_[0]) or die $dbh->errstr;
-	my @blockedipinfo = $sth1->fetchrow_array();
-	return ($blockedipinfo[0],$blockedipinfo[1],$blockedipinfo[2],$blockedipinfo[3]);
-	} #close sub read in IP address log
 
 
 sub sub_is_integer_string
