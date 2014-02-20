@@ -125,6 +125,16 @@ sub list {
 	return $self->fetchall_arrayref($sql);
 }
 
+sub list_ips {
+	my ($self) = @_;
+	my @ips;
+	my $rows = $self->list();
+	foreach my $row (@{ $rows }) {
+		push (@ips,  $row->{ip});
+	}
+	return @ips;
+}
+
 sub query {
 	my ($self, $ip) = @_;
 	#database read in information for a specific IP

@@ -131,10 +131,40 @@ sub cli_query {
 	usage("Invalid IP Address") if (!$ipversion);
 	my $info = $mgr->{db}->query($ipaddress);
 	if(!$info) {
-                print "IP not blackholed\n";
-                return 1;
-        }
+		print "IP not blackholed\n";
+		return 1;
+	}
 	print "$info->{who} - $info->{why} - $info->{when} - $info->{until}\n";
+}
+sub cli_reconcile {
+	my ($mgr) = @_;
+
+	my @db_ips = $mgr->{db}->list_ips();
+	my @rtr_ips = $mgr->{rtr}->get_blocked_ips();
+	
+	#build hashes
+	my %rtr_ips;
+	my %db_ips;
+	map($rtr_ips{$_}=1, @rtr_ips);
+	map($db_ips{$_}=1,  @db_ips);
+	
+	#figure out the differences
+	my @missing_rtr = grep(!defined($rtr_ips{$_}), @db_ips);
+	my @missing_db  = grep(!defined($db_ips{$_}),  @rtr_ips);
+	if(@missing_rtr) {
+		foreach my $ip (@missing_rtr) {
+			print "$ip is missing from the router\n";
+			$mgr->{db}->delete($ip)
+		}
+	}
+	if(@missing_db) {
+		foreach my $ip (@missing_db) {
+			print "$ip is missing from the db\n";
+			my $hostname = reverse_lookup($ip);
+			$mgr->{db}->block($ip, $hostname, "BHRscript", "reconciled", 0);
+		}
+	}
+	return (\@missing_db, \@missing_rtr);
 }
 
 sub usage
@@ -169,7 +199,7 @@ sub main
 	return cli_remove($mgr, \@ARGV)   if $func eq "remove";
 	return cli_list($mgr)             if $func eq "list";
 	return cli_query($mgr, \@ARGV)    if $func eq "query";
-	return sub_bhr_reconcile()       if $func eq "reconcile";
+	return cli_reconcile($mgr)    if $func eq "reconcile";
 	return sub_bhr_cronjob()         if $func eq "cronjob";
 	return sub_bhr_digest()          if $func eq "digest";
 
