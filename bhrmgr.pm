@@ -33,7 +33,7 @@ sub _initialize {
 }
 
 sub log {
-        my ($self, $priority, $type, $msg) = @_;
+	my ($self, $priority, $type, $msg) = @_;
 	return $self->{logger}->log($priority, $type, $msg);
 }
 
@@ -48,7 +48,6 @@ sub add_block {
 	$self->{rtr}->nullroute_add($ipaddress);
 		
 	my $log_hostname = $hostname || "null";
-	my $logprepend = "BHR";
 	my $endtime = 0;
 	my $seconds = expand_duration($duration);
 	$endtime = (time()+$seconds) if $seconds;
@@ -58,7 +57,6 @@ sub add_block {
 sub remove_block
 {
 	my ($self, $ipaddress, $service, $reason) = @_;
-	my $ipversion = ip_version($ipaddress);
 	return 1 if (!$self->{db}->is_ip_blocked($ipaddress));
 
 	$self->{db}->unblock($ipaddress, $service, $reason);
@@ -120,7 +118,7 @@ sub write_website {
 	my $csv = "";
 	my $csv_priv = "";
 	foreach my $b (@{ $blocklist }) {
-		$csv 	  .= "$b->{ip},$b->{when},$b->{until}\n";
+		$csv      .= "$b->{ip},$b->{when},$b->{until}\n";
 		$csv_priv .= "$b->{ip},$b->{who},$b->{why},$b->{when},$b->{until}\n";
 	}
 
