@@ -43,11 +43,14 @@ use Net::DNS;
 use File::stat;
 use DBI;
 use Config::Simple;
+use POSIX qw(strftime);
+
 use bhrmgr qw(BHRMGR);
 use bhrdb qw(BHRDB);
 use iputil qw(ip_version);
 use dnsutil qw(reverse_lookup);
 use timeutil qw(expand_duration);
+use fileutil qw(write_file);
 use quagga;
 
 #read in config options from an external file
@@ -63,10 +66,6 @@ my $emailto = $config->param('emailto');
 my $emailsubject = $config->param('emailsubject');
 my $db_host = $config->param('databasehost');
 my $db_name = $config->param('databasename');
-my $statusfilelocation = $config->param('statusfilelocation');
-my $filenhtmlnotpriv = $config->param('filenhtmlnotpriv');
-my $filecsvnotpriv = $config->param('filecsvnotpriv');
-my $filecsvpriv = $config->param('filecsvpriv');
 
 #database connection settings
 #connection uses the user running the script - make sure all users have all privileges on the DB and tables.
@@ -193,100 +192,66 @@ sub cli_cronjob {
 	#database operations for removing expired blocks
 	#select statement returns IPs that have expired but not epoch 0 for block time
 	$mgr->unblock_expired();
-        $mgr->{rtr}->write_mem();
-	return 0
+	$mgr->{rtr}->write_mem();
+
+	my $out_dir = $mgr->{config}->{'statusfilelocation'};
+	chdir($out_dir)|| die "Error: could not chdir to $out_dir";
+
+	my $fn_html    	= $mgr->{config}->{'filenhtmlnotpriv'};
+	my $fn_csv   	= $mgr->{config}->{'filecsvnotpriv'};
+	my $fn_csv_priv	= $mgr->{config}->{'filecsvpriv'};
+
+	my $blocklist = $mgr->{db}->list;
+	my $block_count = length($blocklist);
+
+	#Write out csv files
+	my $csv = "";
+	my $csv_priv = "";
+	foreach my $b (@{ $blocklist }) {
+		$csv 	  .= "$b->{ip},$b->{when},$b->{until}\n";
+		$csv_priv .= "$b->{ip},$b->{who},$b->{why},$b->{when},$b->{until}\n";
+	}
+
+	write_file($fn_csv, $csv);
+	write_file($fn_csv_priv, $csv_priv);
+
+	#Write out html file
+
+	my $table_rows = "";
+	foreach my $b (@{ $blocklist }) {
+		my $from = strftime("%a %b %e %H:%M:%S %Y", (localtime $b->{when}));
+		my $to =   strftime("%a %b %e %H:%M:%S %Y", (localtime $b->{until}));
+		$to = "indefinite" if $b->{until} == 0;
+		$table_rows .= <<HTML;
+			<tr>
+				<td> $b->{ip} </td>
+				<td> $from </td>
+				<td> $to </td>
+			</tr>
+HTML
+	}
+
+	my $created = localtime;
+	my $html = <<HTML;
+		<html>
+		<p>Number of blocked IPs: $block_count</p>
+		<p>This file is also available as a csv - <a href="bhlist.csv">bhlist.csv</a></p>
+		<p>Created $created</p>
+		<table border="1" width="100%">
+		<thead>
+			<tr> <th>IP</th> <th>Block Time</th> <th>Block Expires</th> </tr>
+		</thead>
+		<tbody>
+		$table_rows
+		</tbody>
+		</table>
+		</html>
+HTML
+	
+	write_file($fn_html, $html);
+
+	return 0;
 }
-=pod
-	
-	my ($officialbhdips_ref,$forrealbhdips_ref) = sub_get_ips ();
-	my @officialbhdips = @$officialbhdips_ref;
-	my $filehtml="bhlisttemp.html";
-	my $filecsv="bhlisttemp.csv";
-	my $fileprivcsv="bhlistprivtemp.csv";
-	my $cmdString = $statusfilelocation; 
-	chdir($cmdString)|| die "Error: could not '$statusfilelocation'"; 
-	#open new files on top of other ones - not append
-	#using temp files to create new ones and then do cp on top of old one when done
-	#creates a privileged (more info) CSV
-	open(FILEHTML, ">$filehtml") or die "Cannot open $filehtml: $!";
-	open(FILECSV, ">$filecsv") or die "Cannot open $filecsv: $!";
-	open(FILEPRIVCSV, ">$fileprivcsv") or die "Cannot open $fileprivcsv: $!";
-	
-	my $htmltable = "<table border=\"1\" width=\"100%\">\n";
-	print FILECSV "ip,when,expire\n";
-	print FILEPRIVCSV "ip,who,why,when,expire\n";
-	my $bhrdcount = 0;
-	my $blackholedip;
-	my $whoblocked;
-	my $whenepochblocked;
-	my $tillepochblocked;
-	my $whyblocked;
-	my $whenblockedsec;
-	my $whenblockedmin;
-	my $whenblockedhour;
-	my $whenblockedday;
-	my $whenblockedmonth;
-	my $whenblockedyear;
-	my $tillblockedsec;
-	my $tillblockedmin;
-	my $tillblockedhour;
-	my $tillblockedday;
-	my $tillblockedmonth;
-	my $tillblockedyear;
-
-	
-	
-	foreach (@officialbhdips)
-		{
-		if ($_ ne "")
-			{
-			$bhrdcount++;
-			$blackholedip = $_;
-			($whoblocked,$whyblocked,$whenepochblocked,$tillepochblocked) = sub_read_in_ipaddress_log ($blackholedip);
-			($tillblockedsec, $tillblockedmin, $tillblockedhour, $tillblockedday,$tillblockedmonth,$tillblockedyear) = (localtime($tillepochblocked))[0,1,2,3,4,5];
-			($whenblockedsec, $whenblockedmin, $whenblockedhour, $whenblockedday,$whenblockedmonth,$whenblockedyear) = (localtime($whenepochblocked))[0,1,2,3,4,5];
-			$htmltable .=  "<tr>\n".
-			"     <td>".$blackholedip."</td>\n";
-			if($tillepochblocked == 0)
-				{
-				$htmltable .=  "     <td>Block time: ".$months[$whenblockedmonth]." ".$whenblockedday.", ".($whenblockedyear+1900)." ".$whenblockedhour.":".$whenblockedmin.":".$whenblockedsec."</td>\n
-					<td>Blocked indefinitely</td>\n
-					</tr>\n";
-				print FILEPRIVCSV $blackholedip.",".$whoblocked.",".$whyblocked.",".$whenepochblocked.",0\n";
-				print FILECSV $blackholedip.",".$whenepochblocked.",0\n";
-				}
-			else
-				{
-				$htmltable .=  "     <td>Block time: ".$months[$whenblockedmonth]." ".$whenblockedday.", ".($whenblockedyear+1900)." ".$whenblockedhour.":".$whenblockedmin.":".$whenblockedsec."</td>\n
-					<td>Block expires: ".$months[$tillblockedmonth]." ".$tillblockedday.", ".($tillblockedyear+1900)." ".$tillblockedhour.":".$tillblockedmin.":".$tillblockedsec."</td>\n
-					</tr>\n";
-				print FILEPRIVCSV $blackholedip.",".$whoblocked.",".$whyblocked.",".$whenepochblocked.",".$tillepochblocked."\n";
-				print FILECSV $blackholedip.",".$whenepochblocked.",".$tillepochblocked."\n";
-				}
-
-			}	#close if
-		} #end for each loop
-
-		$htmltable .=  "</table>\n";
-		print FILEHTML "<HTML>\n";
-		print FILEHTML "<p>Number of blocked IPs: ",$bhrdcount,"<br>\n";
-		print FILEHTML "This file is also available as a csv - bhlist.csv<br>\n";
-		print FILEHTML "Created ".(localtime)."</p>\n";
-		print FILEHTML $htmltable;
-		print FILEHTML "</html>\n";
-		close(FILEHTML);
-		close(FILECSV);
-		close(FILEPRIVCSV);
-		#replace the live files with the new temp ones
-		$cmdString="rm $filenhtmlnotpriv; cp bhlisttemp.html $filenhtmlnotpriv"; 
-		system($cmdString)==0 or die "Error: could not '$cmdString'";
-		$cmdString="rm $filecsvnotpriv; cp bhlisttemp.csv $filecsvnotpriv"; 
-		system($cmdString)==0 or die "Error: could not '$cmdString'";
-		$cmdString="rm $filecsvpriv; cp bhlistprivtemp.csv $filecsvpriv"; 
-		system($cmdString)==0 or die "Error: could not '$cmdString'";
-	}#close sub cronjob
-=cut
-
 	
 sub sub_bhr_digest
 	# send the email notification digest

@@ -118,7 +118,9 @@ sub unblock {
 sub list {
 	my ($self) = @_;
 	my $sql = q{
-		SELECT b.block_ipaddress as ip, b.block_who as who, b.block_why as why, EXTRACT (EPOCH from l.blocklist_until) as until
+		SELECT b.block_ipaddress as ip, b.block_who as who, b.block_why as why,
+		EXTRACT (EPOCH from b.block_when) as when,
+		EXTRACT (EPOCH from l.blocklist_until) as until
 		FROM blocklog b, blocklist l
 		WHERE b.block_id = l.blocklist_id 
 	};
