@@ -183,7 +183,7 @@ sub unblock_queue {
 	my ($self) = @_;
 	my $dbh = $self->{dbh};
 	#select statement returns IPs that have expired but not epoch 0 for block time
-	my $sql1 = q{
+	my $sql = q{
 		select blocklog.block_ipaddress
 		from blocklist
 		inner join blocklog
@@ -191,16 +191,12 @@ sub unblock_queue {
 		where (now() > blocklist.blocklist_until)
 		AND (extract(epoch from blocklist.blocklist_until) != 0)
 		};
-	my $sth = $dbh->prepare($sql1) or die $dbh->errstr;
-	$sth->execute() or die $dbh->errstr;
-	return $sth->fetchall_arrayref({});
+	return $self->fetchall_arrayref($sql);
 }
 
 sub block_notify_queue {
-	my ($self) = @_;
-	my $dbh = $self->{dbh};
 	#build the list of blocked IDs that need to be notified
-	#database operations
+	my ($self) = @_;
 	my $sql = q{
 		SELECT
 		b.block_id, b.block_when as when, b.block_who as who, b.block_ipaddress as ip, b.block_reverse as reverse, b.block_why as why,
@@ -208,14 +204,10 @@ sub block_notify_queue {
 		FROM blocklog b, blocklist l
 		WHERE b.block_id = l.blocklist_id AND NOT b.block_notified
 	};
-	my $sth = $dbh->prepare($sql) or die $dbh->errstr;
-	$sth->execute() or die $dbh->errstr;
-	return $sth->fetchall_arrayref({});
+	return $self->fetchall_arrayref($sql);
 }
 sub unblock_notify_queue {
 	my ($self) = @_;
-	my $dbh = $self->{dbh};
-
 	my $sql = 
 		q{
 		SELECT
@@ -224,9 +216,7 @@ sub unblock_notify_queue {
 		FROM unblocklog u, blocklog b
 		WHERE u.unblock_id = b.block_id and NOT u.unblock_notified;
 		};
-	my $sth = $dbh->prepare($sql) or die $dbh->errstr;
-	$sth->execute() or die $dbh->errstr;
-	return $sth->fetchall_arrayref({});
+	return $self->fetchall_arrayref($sql);
 }
 
 sub mark_block_notified {
