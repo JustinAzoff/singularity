@@ -139,6 +139,24 @@ sub cli_reconcile {
 	return $mgr->reconcile();
 }
 
+sub cli_cronjob {
+	my ($mgr) = @_;
+	# this sub will finds blocklists rows with times that are less then now and not 0(indefinite block)
+	# added feature: now creates an HTML file with the list of blocked IPs
+	# this file can be shared with users that do not have access to the main BHR scripts.
+	#JFE - 2013Dec04 - now exports a CSV file with blocked IPs and info - for auto import use
+	
+	#do a wr mem on the quagga system - does not happen during the routing changes now.
+	#database operations for removing expired blocks
+	#select statement returns IPs that have expired but not epoch 0 for block time
+	$mgr->unblock_expired();
+	$mgr->{rtr}->write_mem();
+
+	$mgr->write_website();
+
+	return 0;
+}
+
 sub usage
 {
 	my $extra = shift;
@@ -177,24 +195,6 @@ sub main
 
 	usage("Invalid Function $func");
 	$dbh->disconnect();
-}
-
-sub cli_cronjob {
-	my ($mgr) = @_;
-	# this sub will finds blocklists rows with times that are less then now and not 0(indefinite block)
-	# added feature: now creates an HTML file with the list of blocked IPs
-	# this file can be shared with users that do not have access to the main BHR scripts.
-	#JFE - 2013Dec04 - now exports a CSV file with blocked IPs and info - for auto import use
-	
-	#do a wr mem on the quagga system - does not happen during the routing changes now.
-	#database operations for removing expired blocks
-	#select statement returns IPs that have expired but not epoch 0 for block time
-	$mgr->unblock_expired();
-	$mgr->{rtr}->write_mem();
-
-	$mgr->write_website();
-
-	return 0;
 }
 	
 sub sub_bhr_digest
