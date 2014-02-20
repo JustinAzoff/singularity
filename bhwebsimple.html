@@ -1,0 +1,68 @@
+<!DOCTYPE html
+	PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+	 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+<head>
+<title>Singularity Blackhole System</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+</head>
+<body>
+<center><h2>Blackhole Simple Web Interface</h2></center>
+
+<form METHOD="POST" ACTION="bhwebsimpleproc.pl">
+<fieldset>
+<legend>Query</legend>
+    <label for="ip">IP</label>
+    <input type="text" name="ip">
+    <input type="submit" value="Search">
+    <input type="hidden" name="function_to_perform" value="query">
+</fieldset>
+</form>
+<form METHOD="POST" ACTION="bhwebsimpleproc.pl">
+<fieldset>
+<legend>Block</legend>
+    <label for="ip">IP</label> <br>
+    <input type="text" name="ip"> <br>
+    <label for="reason">Reason</label> <br>
+    <input type="text" name="reason"> <br>
+    <label for="duration">Duration</label> <br>
+     <select name="duration">
+     <option value="1h">1 Hour</option>
+     <option value="1d">1 Day</option>
+     <option value="7d">1 Week</option>
+     <option value="1m" SELECTED>1 Month</option>
+     <option value="3m">3 Months</option>
+     <option value="6m">6 Months</option>
+     <option value="1y">1 Year</option>
+     <option value="">Indefinite</option>
+     </select> <br>
+    <input type="submit" value="Block">
+    <input type="hidden" name="function_to_perform" value="add">
+</fieldset>
+</form>
+
+<br>
+
+<form METHOD="POST" ACTION="bhwebsimpleproc.pl">
+<fieldset>
+<legend>UnBlock</legend>
+    <label for="ip">IP</label> <br>
+    <input type="text" name="ip"> <br>
+    <label for="reason">Reason</label> <br>
+    <input type="text" name="reason"> <br>
+    <input type="submit" value="UnBlock">
+    <input type="hidden" name="function_to_perform" value="remove">
+</fieldset>
+</form>
+
+<br>
+
+<form METHOD="POST" ACTION="bhwebsimpleproc.pl">
+<fieldset>
+<legend>Actions</legend>
+    <input type="hidden" name="function_to_perform" value="reconcile">
+    <input type="submit" value="Reconcile">
+</fieldset>
+</form>
+</body>
+</html>
