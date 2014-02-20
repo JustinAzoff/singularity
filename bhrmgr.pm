@@ -104,7 +104,7 @@ sub unblock_expired {
 }
 
 sub write_website {
-    my $self = shift;
+	my $self = shift;
 	my $out_dir = $self->{config}->{'statusfilelocation'};
 	chdir($out_dir) or die "Error: could not chdir to $out_dir";
 
