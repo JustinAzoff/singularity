@@ -199,18 +199,16 @@ sub send_digest {
 	my $emailsubject = $self->{config}->{'emailsubject'};
 
 	my $message = Email::MIME->create (
-		header_str =>
-			[
-				From    => $emailfrom,
-				To      => $emailto,
-				Subject => $emailsubject,
-			],
-			attributes =>
-			{
-				encoding => 'quoted-printable',
-				charset  => 'ISO-8859-1',
-			},
-			body_str => $emailbody,
+		header_str => [
+			From    => $emailfrom,
+			To      => $emailto,
+			Subject => $emailsubject,
+		],
+		attributes => {
+			encoding => 'quoted-printable',
+			charset  => 'ISO-8859-1',
+		},
+		body_str => $emailbody,
 	);
 	sendmail($message);
 	return 0;
