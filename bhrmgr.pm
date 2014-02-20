@@ -2,12 +2,15 @@ package BHRMGR;
 use warnings;
 use strict;
 
+use POSIX qw(strftime);
+
 use bhrdb qw(BHRDB);
 use logutil qw(Logger);
 use quagga;
 use dnsutil qw(reverse_lookup);
 use timeutil qw(expand_duration);
 use iputil qw(ip_version);
+use fileutil qw(write_file);
 
 sub new {
 	my $class = shift;
@@ -98,6 +101,66 @@ sub unblock_expired {
 	foreach my $rec (@{ $unblock_queue }) {
 		return $self->remove_block($rec->{ip},"Block Time Expired","cronjob");
 	}
+}
+
+sub write_website {
+    my $self = shift;
+	my $out_dir = $self->{config}->{'statusfilelocation'};
+	chdir($out_dir) or die "Error: could not chdir to $out_dir";
+
+	my $fn_html    	= $self->{config}->{'filenhtmlnotpriv'};
+	my $fn_csv   	= $self->{config}->{'filecsvnotpriv'};
+	my $fn_csv_priv	= $self->{config}->{'filecsvpriv'};
+
+	my $blocklist = $self->{db}->list;
+	my $block_count = length($blocklist);
+
+	#Write out csv files
+	my $csv = "";
+	my $csv_priv = "";
+	foreach my $b (@{ $blocklist }) {
+		$csv 	  .= "$b->{ip},$b->{when},$b->{until}\n";
+		$csv_priv .= "$b->{ip},$b->{who},$b->{why},$b->{when},$b->{until}\n";
+	}
+
+	write_file($fn_csv, $csv);
+	write_file($fn_csv_priv, $csv_priv);
+
+	#Write out html file
+
+	my $table_rows = "";
+	foreach my $b (@{ $blocklist }) {
+		my $from = strftime("%a %b %e %H:%M:%S %Y", (localtime $b->{when}));
+		my $to =   strftime("%a %b %e %H:%M:%S %Y", (localtime $b->{until}));
+		$to = "indefinite" if $b->{until} == 0;
+		$table_rows .= <<HTML;
+			<tr>
+				<td> $b->{ip} </td>
+				<td> $from </td>
+				<td> $to </td>
+			</tr>
+HTML
+	}
+
+	my $created = localtime;
+	my $html = <<HTML;
+		<html>
+		<p>Number of blocked IPs: $block_count</p>
+		<p>This file is also available as a csv - <a href="bhlist.csv">bhlist.csv</a></p>
+		<p>Created $created</p>
+		<table border="1" width="100%">
+		<thead>
+			<tr> <th>IP</th> <th>Block Time</th> <th>Block Expires</th> </tr>
+		</thead>
+		<tbody>
+		$table_rows
+		</tbody>
+		</table>
+		</html>
+HTML
+
+	write_file($fn_html, $html);
+	return 0;
 }
 
 1;

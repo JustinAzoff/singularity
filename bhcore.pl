@@ -43,14 +43,12 @@ use Net::DNS;
 use File::stat;
 use DBI;
 use Config::Simple;
-use POSIX qw(strftime);
 
 use bhrmgr qw(BHRMGR);
 use bhrdb qw(BHRDB);
 use iputil qw(ip_version);
 use dnsutil qw(reverse_lookup);
 use timeutil qw(expand_duration);
-use fileutil qw(write_file);
 use quagga;
 
 #read in config options from an external file
@@ -194,61 +192,7 @@ sub cli_cronjob {
 	$mgr->unblock_expired();
 	$mgr->{rtr}->write_mem();
 
-	my $out_dir = $mgr->{config}->{'statusfilelocation'};
-	chdir($out_dir)|| die "Error: could not chdir to $out_dir";
-
-	my $fn_html    	= $mgr->{config}->{'filenhtmlnotpriv'};
-	my $fn_csv   	= $mgr->{config}->{'filecsvnotpriv'};
-	my $fn_csv_priv	= $mgr->{config}->{'filecsvpriv'};
-
-	my $blocklist = $mgr->{db}->list;
-	my $block_count = length($blocklist);
-
-	#Write out csv files
-	my $csv = "";
-	my $csv_priv = "";
-	foreach my $b (@{ $blocklist }) {
-		$csv 	  .= "$b->{ip},$b->{when},$b->{until}\n";
-		$csv_priv .= "$b->{ip},$b->{who},$b->{why},$b->{when},$b->{until}\n";
-	}
-
-	write_file($fn_csv, $csv);
-	write_file($fn_csv_priv, $csv_priv);
-
-	#Write out html file
-
-	my $table_rows = "";
-	foreach my $b (@{ $blocklist }) {
-		my $from = strftime("%a %b %e %H:%M:%S %Y", (localtime $b->{when}));
-		my $to =   strftime("%a %b %e %H:%M:%S %Y", (localtime $b->{until}));
-		$to = "indefinite" if $b->{until} == 0;
-		$table_rows .= <<HTML;
-			<tr>
-				<td> $b->{ip} </td>
-				<td> $from </td>
-				<td> $to </td>
-			</tr>
-HTML
-	}
-
-	my $created = localtime;
-	my $html = <<HTML;
-		<html>
-		<p>Number of blocked IPs: $block_count</p>
-		<p>This file is also available as a csv - <a href="bhlist.csv">bhlist.csv</a></p>
-		<p>Created $created</p>
-		<table border="1" width="100%">
-		<thead>
-			<tr> <th>IP</th> <th>Block Time</th> <th>Block Expires</th> </tr>
-		</thead>
-		<tbody>
-		$table_rows
-		</tbody>
-		</table>
-		</html>
-HTML
-	
-	write_file($fn_html, $html);
+	$mgr->write_website();
 
 	return 0;
 }
