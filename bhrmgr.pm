@@ -84,13 +84,11 @@ sub reconcile {
 	my @missing_db  = grep(!defined($db_ips{$_}),  @rtr_ips);
 	if(@missing_rtr) {
 		foreach my $ip (@missing_rtr) {
-			print "$ip is missing from the router\n";
 			$self->{db}->delete($ip)
 		}
 	}
 	if(@missing_db) {
 		foreach my $ip (@missing_db) {
-			print "$ip is missing from the db\n";
 			my $hostname = reverse_lookup($ip);
 			$self->{db}->block($ip, $hostname, "BHRscript", "reconciled", 0);
 		}

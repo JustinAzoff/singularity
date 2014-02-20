@@ -103,7 +103,14 @@ sub cli_query {
 }
 sub cli_reconcile {
 	my ($mgr) = @_;
-	return $mgr->reconcile();
+	my ($missing_db, $missing_rtr) = $mgr->reconcile();
+	foreach my $ip (@{ $missing_db }) {
+		print "$ip is missing from the db\n";
+	}
+	foreach my $ip (@{ $missing_rtr }) {
+		print "$ip is missing from the router\n";
+	}
+	return 0;
 }
 
 sub cli_cronjob {
