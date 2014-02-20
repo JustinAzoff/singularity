@@ -40,8 +40,6 @@ use Config::Simple;
 use bhrmgr qw(BHRMGR);
 use bhrdb qw(BHRDB);
 use iputil qw(ip_version);
-use dnsutil qw(reverse_lookup);
-use timeutil qw(expand_duration);
 use quagga;
 
 sub cli_add
