@@ -483,14 +483,4 @@ sub sub_get_ips
 	return (\@subgetipsofficialbhdips,\@subgetipsforrealbhdips);
 	} #close get IPs
 
-sub eval_duration
-    {
-    my $duration = shift;
-    return (0, "indefinite") if(!defined($duration));
-
-    my $seconds = expand_duration($duration);
-
-    return ($seconds, $duration);
-    }
-
 exit(main());
