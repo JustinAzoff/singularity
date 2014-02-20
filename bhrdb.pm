@@ -229,7 +229,7 @@ sub mark_block_notified {
 		set block_notified = true
 		where block_id = ?
 	};
-		my $sth = $dbh->prepare($sql) or die $dbh->errstr;
+	my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 	$sth->execute($block_id) or die $dbh->errstr;
 }
 sub mark_unblock_notified {
