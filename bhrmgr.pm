@@ -62,4 +62,34 @@ sub remove_block
 	$self->log("info", "UNBLOCK", "IP=$ipaddress WHO=$service WHY=$reason");
 }
 
+sub reconcile {
+    my $self = shift;
+	my @db_ips = $self->{db}->list_ips();
+	my @rtr_ips = $self->{rtr}->get_blocked_ips();
+	
+	#build hashes
+	my %rtr_ips;
+	my %db_ips;
+	map($rtr_ips{$_}=1, @rtr_ips);
+	map($db_ips{$_}=1,  @db_ips);
+	
+	#figure out the differences
+	my @missing_rtr = grep(!defined($rtr_ips{$_}), @db_ips);
+	my @missing_db  = grep(!defined($db_ips{$_}),  @rtr_ips);
+	if(@missing_rtr) {
+		foreach my $ip (@missing_rtr) {
+			print "$ip is missing from the router\n";
+			$self->{db}->delete($ip)
+		}
+	}
+	if(@missing_db) {
+		foreach my $ip (@missing_db) {
+			print "$ip is missing from the db\n";
+			my $hostname = reverse_lookup($ip);
+			$self->{db}->block($ip, $hostname, "BHRscript", "reconciled", 0);
+		}
+	}
+	return (\@missing_db, \@missing_rtr);
+}
+
 1;
