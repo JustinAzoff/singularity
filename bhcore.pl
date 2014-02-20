@@ -483,23 +483,6 @@ sub sub_get_ips
 	return (\@subgetipsofficialbhdips,\@subgetipsforrealbhdips);
 	} #close get IPs
 
-
-sub sub_is_integer_string
-	{
-	my $testthis = shift;
-	# a valid integer is any amount of white space, followed
-	# by an optional sign, followed by at least one digit,
-	# followed by any amount of white space
-	if(($testthis =~ /^\s*[\+\-]?\d+\s*$/) and ($testthis > 0))
-		{
-		return 1;
-		}
-	else
-		{
-		return 0;
-		}
-	} #close sub integer
-
 sub eval_duration
     {
     my $duration = shift;
