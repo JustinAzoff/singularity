@@ -95,7 +95,7 @@ sub web_add {
 	my $reason = $q->param('reason');
 	my $duration = $q->param('duration');
 
-        my $ipversion = ip_version($ip);
+	my $ipversion = ip_version($ip);
 	return "Invalid IP Address" if (!$ipversion);
 	return "Missing reason" if ($reason eq "");
 	return "Missing duration" if ($duration eq "");
@@ -108,7 +108,7 @@ sub web_remove {
 	my $ip = $q->param('ip');
 	my $reason = $q->param('reason');
 
-        my $ipversion = ip_version($ip);
+	my $ipversion = ip_version($ip);
 	return "Invalid IP Address" if (!$ipversion);
 	return "Missing reason" if ($reason eq "");
 
@@ -121,7 +121,7 @@ sub web_remove {
 
 sub main {
 
-        my $configfile = $ENV{BHR_CFG} || "/services/blackhole/bin/bhr.cfg";
+	my $configfile = $ENV{BHR_CFG} || "/services/blackhole/bin/bhr.cfg";
 	my %config;
 	Config::Simple->import_from('bhr.cfg', \%config);
 	my $mgr = BHRMGR->new(config => \%config);
