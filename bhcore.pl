@@ -130,6 +130,7 @@ sub cli_digest {
 	my $mgr = shift;
 	$mgr->send_digest();
 	$mgr->send_stats();
+	return 0;
 }
 
 sub usage
