@@ -116,7 +116,7 @@ sub write_website {
 	my $fn_csv_priv	= $self->{config}->{'filecsvpriv'};
 
 	my $blocklist = $self->{db}->list;
-	my $block_count = length($blocklist);
+	my $block_count = scalar(@{$blocklist});
 
 	#Write out csv files
 	my $csv = "";
@@ -175,8 +175,8 @@ sub send_digest {
 	my $block_notify = $self->{db}->block_notify_queue();
 	my $unblock_notify = $self->{db}->unblock_notify_queue();
 
-	my $block_count = length($block_notify);
-	my $unblock_count = length($unblock_notify);
+	my $block_count = scalar(@{$block_notify});
+	my $unblock_count = scalar(@{$unblock_notify});
 
 	#nothing to do
 	return 0 if($block_count + $unblock_count == 0);
@@ -189,19 +189,19 @@ sub send_digest {
 	foreach my $b (@{ $block_notify }) {
 		my $reverse = $b->{reverse} || "none";
 		$emailbody .= "BLOCK - $b->{when} - $b->{who} - $b->{ip} - $reverse - $b->{why} $b->{until}\n";
-		#$self->{db}->mark_block_notified($b->{block_id});
+		$self->{db}->mark_block_notified($b->{block_id});
 	}
 	foreach my $b (@{ $unblock_notify }) {
 		my $reverse = $b->{reverse} || "none";
 		$emailbody .= "UNBLOCK - $b->{unblock_when} - $b->{unblock_who} - $b->{unblock_why} - $b->{ip} - $reverse"; #no newline
 		$emailbody .= " Originally Blocked by: $b->{block_who} for $b->{block_why}\n";
-		#$self->{db}->mark_unblock_notified($b->{block_id});
+		$self->{db}->mark_unblock_notified($b->{block_id});
 	}
 
 	my $emailfrom = $self->{config}->{'emailfrom'};
 	my $emailto = $self->{config}->{'emailto'};
 	my $emailsubject = $self->{config}->{'emailsubject'};
-	
+
 	my $message = Email::MIME->create (
 		header_str =>
 			[
@@ -217,6 +217,7 @@ sub send_digest {
 			body_str => $emailbody,
 	);
 	sendmail($message);
+	return 0;
 }
 
 sub send_stats {
