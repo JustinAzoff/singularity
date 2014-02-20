@@ -92,4 +92,12 @@ sub reconcile {
 	return (\@missing_db, \@missing_rtr);
 }
 
+sub unblock_expired {
+	my $self = shift;
+	my $unblock_queue = $self->{db}->unblock_queue();
+	foreach my $rec (@{ $unblock_queue }) {
+		return $self->remove_block($rec->{ip},"Block Time Expired","cronjob");
+	}
+}
+
 1;

@@ -184,7 +184,7 @@ sub unblock_queue {
 	my $dbh = $self->{dbh};
 	#select statement returns IPs that have expired but not epoch 0 for block time
 	my $sql = q{
-		select blocklog.block_ipaddress
+		select blocklog.block_ipaddress as ip
 		from blocklist
 		inner join blocklog
 		on blocklog.block_id = blocklist.blocklist_id

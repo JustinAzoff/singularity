@@ -135,10 +135,11 @@ sub cli_query {
 		return 1;
 	}
 	print "$info->{who} - $info->{why} - $info->{when} - $info->{until}\n";
+	return 0;
 }
 sub cli_reconcile {
 	my ($mgr) = @_;
-    return $mgr->reconcile();
+	return $mgr->reconcile();
 }
 
 sub usage
@@ -173,42 +174,29 @@ sub main
 	return cli_remove($mgr, \@ARGV)   if $func eq "remove";
 	return cli_list($mgr)             if $func eq "list";
 	return cli_query($mgr, \@ARGV)    if $func eq "query";
-	return cli_reconcile($mgr)    if $func eq "reconcile";
-	return sub_bhr_cronjob()         if $func eq "cronjob";
+	return cli_reconcile($mgr)        if $func eq "reconcile";
+	return cli_cronjob($mgr)          if $func eq "cronjob";
 	return sub_bhr_digest()          if $func eq "digest";
 
 	usage("Invalid Function $func");
 	$dbh->disconnect();
 }
 
-sub sub_bhr_cronjob
-	{
+sub cli_cronjob {
+	my ($mgr) = @_;
 	# this sub will finds blocklists rows with times that are less then now and not 0(indefinite block)
 	# added feature: now creates an HTML file with the list of blocked IPs
 	# this file can be shared with users that do not have access to the main BHR scripts.
 	#JFE - 2013Dec04 - now exports a CSV file with blocked IPs and info - for auto import use
 	
 	#do a wr mem on the quagga system - does not happen during the routing changes now.
-	system("sudo /usr/bin/vtysh -c \"wr me\"");
 	#database operations for removing expired blocks
 	#select statement returns IPs that have expired but not epoch 0 for block time
-	my $unblockip = "";
-	my $sql1 = 
-		q{
-		select blocklog.block_ipaddress
-		from blocklist
-		inner join blocklog
-		on blocklog.block_id = blocklist.blocklist_id
-		where (now() > blocklist.blocklist_until)
-		AND (extract(epoch from blocklist.blocklist_until) != 0)
-		};
-	my $sth1 = $dbh->prepare($sql1) or die $dbh->errstr;
-	$sth1->execute() or die $dbh->errstr;
-	while ($unblockip = $sth1->fetchrow())
-	{
-		sub_bhr_remove($unblockip,"Block Time Expired","cronjob");
-	};
-	#end of database operations	
+	$mgr->unblock_expired();
+        $mgr->{rtr}->write_mem();
+	return 0
+}
+=pod
 	
 	my ($officialbhdips_ref,$forrealbhdips_ref) = sub_get_ips ();
 	my @officialbhdips = @$officialbhdips_ref;
@@ -297,6 +285,7 @@ sub sub_bhr_cronjob
 		$cmdString="rm $filecsvpriv; cp bhlistprivtemp.csv $filecsvpriv"; 
 		system($cmdString)==0 or die "Error: could not '$cmdString'";
 	}#close sub cronjob
+=cut
 
 	
 sub sub_bhr_digest
