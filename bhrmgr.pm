@@ -3,6 +3,8 @@ use warnings;
 use strict;
 
 use POSIX qw(strftime);
+use Email::MIME;
+use Email::Sender::Simple qw(sendmail);
 
 use bhrdb qw(BHRDB);
 use logutil qw(Logger);
@@ -11,6 +13,7 @@ use dnsutil qw(reverse_lookup);
 use timeutil qw(expand_duration);
 use iputil qw(ip_version);
 use fileutil qw(write_file);
+
 
 sub new {
 	my $class = shift;
@@ -161,6 +164,70 @@ HTML
 
 	write_file($fn_html, $html);
 	return 0;
+}
+
+sub send_digest {
+	my $self = shift;
+
+	my $queueline = "";
+	my $queuehaddata = 0;
+
+	my $block_notify = $self->{db}->block_notify_queue();
+	my $unblock_notify = $self->{db}->unblock_notify_queue();
+
+	my $block_count = length($block_notify);
+	my $unblock_count = length($unblock_notify);
+
+	#nothing to do
+	return 0 if($block_count + $unblock_count == 0);
+
+	#build email body
+	#print activity counts
+	my $emailbody = "Activity since last digest:\nBlocked: $block_count\nUnblocked: $unblock_count\n";
+	
+	#add blocked notifications to email body
+	foreach my $b (@{ $block_notify }) {
+		my $reverse = $b->{reverse} || "none";
+		$emailbody .= "BLOCK - $b->{when} - $b->{who} - $b->{ip} - $reverse - $b->{why} $b->{until}\n";
+		#$self->{db}->mark_block_notified($b->{block_id});
+	}
+	foreach my $b (@{ $unblock_notify }) {
+		my $reverse = $b->{reverse} || "none";
+		$emailbody .= "UNBLOCK - $b->{unblock_when} - $b->{unblock_who} - $b->{unblock_why} - $b->{ip} - $reverse"; #no newline
+		$emailbody .= " Originally Blocked by: $b->{block_who} for $b->{block_why}\n";
+		#$self->{db}->mark_unblock_notified($b->{block_id});
+	}
+
+	my $emailfrom = $self->{config}->{'emailfrom'};
+	my $emailto = $self->{config}->{'emailto'};
+	my $emailsubject = $self->{config}->{'emailsubject'};
+	
+	my $message = Email::MIME->create (
+		header_str =>
+			[
+				From    => $emailfrom,
+				To      => $emailto,
+				Subject => $emailsubject,
+			],
+			attributes =>
+			{
+				encoding => 'quoted-printable',
+				charset  => 'ISO-8859-1',
+			},
+			body_str => $emailbody,
+	);
+	sendmail($message);
+}
+
+sub send_stats {
+	my $self = shift;
+	my $sendstats = $self->{config}->{'sendstats'};
+
+	return 0 if(!$sendstats);
+	my $stats = $self->{db}->stats();
+	foreach my $row (@{$stats}) {
+		$self->log("info", "STATS", "WHO=$row->{who} TOTAL_BLOCKED=$row->{count}");
+	}
 }
 
 1;
