@@ -30,204 +30,110 @@
 
 use strict;
 use warnings;
-use CGI;
+use CGI qw/ :standard -debug /;
+use CGI::Carp;
 
-#bhcore.pl file location
+use Config::Simple;
+use bhrmgr qw(BHRMGR);
+use POSIX qw(strftime);
+use iputil qw(ip_version);
+
 my $binlocation = "/services/blackhole/bin/";
 
-
 my $q = new CGI;			# create new CGI object
-print		$q->header;		 # create the HTTP header
-print		$q->start_html('Singularity Blackhole System');	# start the HTML
-print		$q->center($q->h2('Blackhole Web Simple Process Page'));        # level 2 header
-print "\n";
-print "<form METHOD=\"POST\" ACTION=\"bhwebsimple.pl\">\n";
+
+sub page_header {
+	print		$q->header;		 # create the HTTP header
+	print		$q->start_html('Singularity Blackhole System');	# start the HTML
+	print		$q->center($q->h2('Blackhole Web Simple Process Page'));        # level 2 header
+	print "\n";
+}
+
+sub footer {
+	print "\n";
+	print '<p><a href="bhwebsimple.html">Back</a></p>';
+	print $q->end_html;  # end the HTML
+	print "\n";
+}
 
 #receive values from display page
-my $scriptfunciton = $q->param('function_to_perform');
+my $user = $ENV{"REMOTE_USER"};
+my $scriptfunciton = $q->param('function_to_perform') or die "invalid params";
 
-	
-	# figure out what function to perform and call the correct sub function.
-	if ($scriptfunciton eq "add")
-		{
-		my $add_ip = $q->param('ip');
-		my $add_user = $q->param('user');
-		my $add_reason = $q->param('reason');
-		my $add_duration = $q->param('duration');
-		my $durationscale = $q->param('durationscale');
-		chomp $durationscale;
-		my $durationscalefactor;
-		my $howlong = "";
-		my $blocktimedescribed = "";
-		my $everythingisok = 1;
-		if ($add_reason eq "")
-			{
-			print ("<p>You must specify a reason</p>\n");
-			$everythingisok = 0;
-			}
-		else
-			{
-			$add_reason =~ tr/-//d; #using dashes/hyphens in the BH log file for separators, need to remove from the reason
-			$add_reason =~ tr/,//d; #using commas in the individual log file for separators, need to remove from the reason
-			}
-		if ($add_user eq "")
-			{
-			print ("<p>You must specify a user or service</p>\n");
-			$everythingisok = 0;
-			}
-		else
-			{
-			$add_user =~ tr/-//d; #using dashes/hyphens in the BH log file for separators, need to remove from the reason
-			$add_user =~ tr/,//d; #using commas in the individual log file for separators, need to remove from the reason
-			}	
-		if ($add_duration eq "")
-			{
-			$howlong = 0; #indefinite
-			$blocktimedescribed = "indefinite";
-			}
-		elsif ($add_duration == 0)
-			{
-			$howlong = 0; #indefinite
-			#$blocktimedescribed = "indefinite";
-			}
-		elsif (sub_is_integer_string($add_duration) == 0)
-			{
-			$howlong = 0;
-			$blocktimedescribed = "indefinite";
-			}
-		else
-			{
-			if ($durationscale eq "minutes")
-				{
-				$durationscalefactor = 60;
-				}
-			elsif ($durationscale eq "hours")
-				{
-				$durationscalefactor = 3600;
-				}
-			elsif ($durationscale eq "days")
-				{
-				$durationscalefactor = 86400;
-				}
-			$howlong=($add_duration * $durationscalefactor); #list in seconds;
-			$blocktimedescribed = ($add_duration." ".$durationscale);
-			}
-		if ($everythingisok)
-			{
-			print "<p>Blocking ".$add_ip." for user ".$add_user." for reason ". $add_reason." for ".$blocktimedescribed."</p>\n";
-			my $bhrcommand = $binlocation."bhcore.pl add ".$add_user." ".$add_ip." \"".$add_reason."\" ".$howlong;
-			print "Calling Core BH script<br>\n";
-			print "Executing: ".$bhrcommand."<br>\n";
-			open(BHCORE,"$bhrcommand |");
-				while (<BHCORE>)
-				{
-				chomp;
-				print "$_<br>\n";
-				}
-			}
-		}
-	
-	elsif ($scriptfunciton eq "remove")
-		{
-		#print $numberofips." IPs in table<br>\n";
-		my $remove_user = $q->param('user');
-		#my $checkboxname;
-		my $ipaddress;
-		my $reason;
-		#my $reasonname;
-		my $everythingisok = 1;
-		if ($remove_user eq "")
-			{
-			print ("<p>You must specify a user or service</p>\n");
-			$everythingisok = 0;
-			}
-		else
-			{
-			$remove_user =~ tr/-//d; #using dashes/hyphens in the BH log file for separators, need to remove from the reason
-			$remove_user =~ tr/,//d; #using commas in the individual log file for separators, need to remove from the reason
-			}
-		if ($everythingisok)
-			{
-			$ipaddress = $q->param('ip');
-			$reason = $q->param('reason');
-			if (defined $ipaddress)
-				{
-				if ($reason eq "")
-					{
-					print "<p>You must provide a reason to unblock ".$ipaddress."</p>\n";
-					}
-				else
-					{
-					print "<p>unblocking ".$ipaddress." for: ".$reason." for you user: ".$remove_user."</p>\n";
-					my $bhrcommand = $binlocation."bhcore.pl remove ".$remove_user." ".$ipaddress." \"".$reason."\"";
-					print "Calling Core BH script<br>\n";
-					print "Executing: ".$bhrcommand."<br>\n";
-					open(BHCORE,"$bhrcommand |");
-					while (<BHCORE>)
-						{
-						chomp;
-						print "$_<br>\n";
-						}
-					}
-				}
-			
-			}	
-		}
-
-	elsif ($scriptfunciton eq "query")
-		{
-		my $ipaddress = $q->param('ip');
-		print "<p>Querying ".$ipaddress."</p>\n";
-					my $bhrcommand = $binlocation."bhcore.pl query ".$ipaddress;
-					print "Calling Core BH script<br>\n";
-					print "Executing: ".$bhrcommand."<br>\n";
-					open(BHCORE,"$bhrcommand |");
-					while (<BHCORE>)
-						{
-						chomp;
-						print "$_<br>\n";
-						}
-		}
-	
-	elsif ($scriptfunciton eq "reconcile")
-		{
-		#sub_bhr_reconcile();
-		my $bhrcommand = $binlocation."bhcore.pl reconcile";
-		print "Calling Core BH script<br>\n";
-		print "Executing: ".$bhrcommand."<br>\n";
-		print "This may take some time<br>BH Core output-None is okay for reconcile :<br>\n";
-		open(BHCORE,"$bhrcommand |");
-			while (<BHCORE>)
-			{
-			chomp;
-			print "$_<br>\n";
-			}
-		}		
-	else
-		{
-		print "<p>No function performed</p>\n";
-		}
-
-		
-print "<p>\n     <input TYPE=\"submit\" VALUE=\"Continue\"></p>\n";
-print $q->end_html;  # end the HTML
-print "\n";
-
-#end of program
-
-	
-sub sub_is_integer_string
-	{
-	my $testthis = shift;
-	# a valid integer is any amount of white space, followed
-	# by an optional sign, followed by at least one digit,
-	# followed by any amount of white space
-	if(($testthis =~ /^\s*[\+\-]?\d+\s*$/) and ($testthis > 0))
-		{
-		return 1;
-		}
-	else
-		{
-		return 0;
-		}
+sub web_reconcile {
+	my $mgr = shift;
+	my $out = "";
+	my ($missing_db, $missing_rtr) = $mgr->reconcile();
+	foreach my $ip (@{ $missing_db }) {
+		$out .= "$ip is missing from the db<br>\n";
 	}
+	foreach my $ip (@{ $missing_rtr }) {
+		$out .= "$ip is missing from the router<br>\n";
+	}
+	return $out;
+}
+
+sub web_query {
+	my $mgr = shift;
+	my $out = "";
+	my $ip = $q->param("ip");
+	my $ipversion = ip_version($ip);
+	return "Invalid IP Address" if (!$ipversion);
+	my $b = $mgr->{db}->query($ip);
+	if(!$b) {
+		return  "<p>IP not blackholed</p>\n";
+	}
+	my $from = strftime("%a %b %e %H:%M:%S %Y", (localtime $b->{when}));
+	my $to =   strftime("%a %b %e %H:%M:%S %Y", (localtime $b->{until}));
+	$to = "indefinite" if $b->{until} == 0;
+	return "$b->{who} - $b->{why} - $from - $to\n";
+}
+
+sub web_add {
+	my $mgr = shift;
+	my $ip = $q->param('ip');
+	my $reason = $q->param('reason');
+	my $duration = $q->param('duration');
+
+        my $ipversion = ip_version($ip);
+	return "Invalid IP Address" if (!$ipversion);
+	return "Missing reason" if ($reason eq "");
+	return "Missing duration" if ($duration eq "");
+
+	$mgr->add_block($ip, $user, $reason, $duration);
+	return "Blocking $ip for user $user for reason $reason for $duration";
+}
+sub web_remove {
+	my $mgr = shift;
+	my $ip = $q->param('ip');
+	my $reason = $q->param('reason');
+
+        my $ipversion = ip_version($ip);
+	return "Invalid IP Address" if (!$ipversion);
+	return "Missing reason" if ($reason eq "");
+
+	my $info = $mgr->{db}->query($ip);
+	return "$ip is not blocked" if(!$info);
+
+	$mgr->remove_block($ip, $reason, $user);
+	return "Unblocking $ip for user $user for reason $reason";
+}
+
+sub main {
+
+        my $configfile = $ENV{BHR_CFG} || "/services/blackhole/bin/bhr.cfg";
+	my %config;
+	Config::Simple->import_from('bhr.cfg', \%config);
+	my $mgr = BHRMGR->new(config => \%config);
+
+	page_header();
+	print web_reconcile($mgr) if ($scriptfunciton eq "reconcile");
+	print web_query($mgr)     if ($scriptfunciton eq "query");
+	print web_add($mgr)       if ($scriptfunciton eq "add");
+	print web_remove($mgr)    if ($scriptfunciton eq "remove");
+
+	footer();
+
+	return 0;
+}
+exit(main());
