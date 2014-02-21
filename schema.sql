@@ -9,6 +9,7 @@ create table blocklog (
 );
 
 create index idx_blocklog_ipaddress on blocklog(block_ipaddress);
+create index idx_blocklog_notified on blocklog(block_notified);
 
 create table unblocklog (
     unblock_id bigint primary key references blocklog(block_id),
@@ -17,6 +18,7 @@ create table unblocklog (
     unblock_why VARCHAR(256) not null,
     unblock_notified boolean DEFAULT false
 );
+create index idx_unblocklog_notified on unblocklog(unblock_notified);
 
 
 create table blocklist (
