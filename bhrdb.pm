@@ -158,18 +158,16 @@ sub history {
 	my ($self, $ip) = @_;
 	#database read in information for a specific IP
 	my $dbh = $self->{dbh};
-	my $sql =
-		q{
-        SELECT
-            *
-        FROM
-            blocklog b
-            left join unblocklog u on b.block_id = u.unblock_id
-            left join blocklist l on b.block_id=l.blocklist_id
-        WHERE b.block_ipaddress = ?
-        ORDER BY b.block_when
-
-		};
+	my $sql = q{
+		SELECT
+			*
+		FROM
+			blocklog b
+			left join unblocklog u on b.block_id = u.unblock_id
+			left join blocklist l on b.block_id=l.blocklist_id
+			WHERE b.block_ipaddress = ?
+			ORDER BY b.block_when
+	};
 	my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 	$sth->execute($ip) or die $dbh->errstr;
 	return $sth->fetchall_arrayref({});

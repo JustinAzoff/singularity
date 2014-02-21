@@ -110,12 +110,12 @@ sub cli_history {
 	my $rows = $mgr->{db}->history($ipaddress);
 
 	foreach my $row (@{ $rows }) {
-        my $until = $row->{blocklist_until} || "indefinite";
+		my $until = $row->{blocklist_until} || "indefinite";
 		print "$row->{block_ipaddress} $row->{block_who} $row->{block_why} $row->{block_when} $until";
-        if(defined($row->{unblock_id})) {
-            print " $row->{unblock_who} $row->{unblock_why} $row->{unblock_when}";
-        }
-        print "\n";
+		if(defined($row->{unblock_id})) {
+			print " $row->{unblock_who} $row->{unblock_why} $row->{unblock_when}";
+		}
+		print "\n";
 	}
 	return 0;
 }
