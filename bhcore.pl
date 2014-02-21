@@ -101,6 +101,24 @@ sub cli_query {
 	print "$info->{who} - $info->{why} - $info->{when} - $info->{until}\n";
 	return 0;
 }
+sub cli_history {
+	my ($mgr, $args) = @_;
+	usage("You must specify an IP Address") if (!defined $args->[1]);
+	my $ipaddress = $args->[1];
+	my $ipversion = ip_version($ipaddress);
+	usage("Invalid IP Address") if (!$ipversion);
+	my $rows = $mgr->{db}->history($ipaddress);
+
+	foreach my $row (@{ $rows }) {
+        my $until = $row->{blocklist_until} || "indefinite";
+		print "$row->{block_ipaddress} $row->{block_who} $row->{block_why} $row->{block_when} $until";
+        if(defined($row->{unblock_id})) {
+            print " $row->{unblock_who} $row->{unblock_why} $row->{unblock_when}";
+        }
+        print "\n";
+	}
+	return 0;
+}
 sub cli_reconcile {
 	my ($mgr) = @_;
 	my ($missing_db, $missing_rtr) = $mgr->reconcile();
@@ -146,6 +164,7 @@ sub usage
 Usage:
 	$0 add Service_Name IPaddress "Reason" How_long_in_seconds
 	$0 remove Service_Name IPaddress "Reason" How_long_in_seconds
+	$0 history ip_address
 	$0 query ip_address
 	$0 list
 	$0 reconcile
@@ -170,6 +189,7 @@ sub main
 	return cli_remove($mgr, \@ARGV)   if $func eq "remove";
 	return cli_list($mgr)             if $func eq "list";
 	return cli_query($mgr, \@ARGV)    if $func eq "query";
+	return cli_history($mgr, \@ARGV)  if $func eq "history";
 	return cli_reconcile($mgr)        if $func eq "reconcile";
 	return cli_cronjob($mgr)          if $func eq "cronjob";
 	return cli_digest($mgr)           if $func eq "digest";
