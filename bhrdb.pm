@@ -123,6 +123,7 @@ sub list {
 		EXTRACT (EPOCH from l.blocklist_until) as until
 		FROM blocklog b, blocklist l
 		WHERE b.block_id = l.blocklist_id 
+		ORDER BY ip
 	};
 	return $self->fetchall_arrayref($sql);
 }
