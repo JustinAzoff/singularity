@@ -31,7 +31,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE SOFTWARE.
 
 
-
+BEGIN {
+	push ( @INC,"/services/blackhole/bin");
+	}
 
 use warnings;
 use strict;
