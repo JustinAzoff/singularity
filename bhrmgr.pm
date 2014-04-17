@@ -80,15 +80,26 @@ sub reconcile {
 	#figure out the differences
 	my @missing_rtr = grep(!defined($rtr_ips{$_}), @db_ips);
 	my @missing_db  = grep(!defined($db_ips{$_}),  @rtr_ips);
+
+	#check to see if things are too out of sync.
+	my $reconcile_max = $self->{config}->{'reconcile_max'};
+	my $missing_rtr_count = scalar(@missing_rtr);
+	my $missing_db_count = scalar(@missing_db);
+	if($missing_rtr_count + $missing_db_count > $reconcile_max) {
+		$self->log("error", "reconcile", "Missing too many entries db=$missing_db_count rtr=$missing_rtr_count");
+		return 1;
+	}
+
+	$self->log("info", "reconcile", "db=$missing_db_count rtr=$missing_rtr_count");
+
 	if(@missing_rtr) {
 		foreach my $ip (@missing_rtr) {
-			$self->{db}->delete($ip)
+			$self->{rtr}->nullroute_add($ip);
 		}
 	}
 	if(@missing_db) {
 		foreach my $ip (@missing_db) {
-			my $hostname = reverse_lookup($ip);
-			$self->{db}->block($ip, $hostname, "BHRscript", "reconciled", 0);
+			$self->{rtr}->nullroute_remove($ip);
 		}
 	}
 	return (\@missing_db, \@missing_rtr);
