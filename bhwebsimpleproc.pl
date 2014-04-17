@@ -123,7 +123,7 @@ sub main {
 
 	my $configfile = $ENV{BHR_CFG} || "/services/blackhole/bin/bhr.cfg";
 	my %config;
-	Config::Simple->import_from('bhr.cfg', \%config);
+	Config::Simple->import_from($configfile, \%config);
 	my $mgr = BHRMGR->new(config => \%config);
 
 	page_header();
