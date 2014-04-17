@@ -51,7 +51,7 @@ sub page_header {
 
 sub footer {
 	print "\n";
-	print '<p><a href="bhwebsimple.html">Back</a></p>';
+	print '<p><a href="../bhwebsimple.html">Back</a></p>';
 	print $q->end_html;  # end the HTML
 	print "\n";
 }
