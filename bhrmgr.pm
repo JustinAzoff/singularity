@@ -109,8 +109,9 @@ sub unblock_expired {
 	my $self = shift;
 	my $unblock_queue = $self->{db}->unblock_queue();
 	foreach my $rec (@{ $unblock_queue }) {
-		return $self->remove_block($rec->{ip},"Block Time Expired","cronjob");
+		$self->remove_block($rec->{ip},"Block Time Expired","cronjob");
 	}
+	return 0;
 }
 
 sub write_website {
