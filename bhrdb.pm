@@ -223,6 +223,7 @@ sub block_notify_queue {
 		l.blocklist_until as until
 		FROM blocklog b, blocklist l
 		WHERE b.block_id = l.blocklist_id AND NOT b.block_notified
+		ORDER BY when
 	};
 	return $self->fetchall_arrayref($sql);
 }
@@ -235,6 +236,7 @@ sub unblock_notify_queue {
 		u.unblock_when as unblock_when, u.unblock_who as unblock_who, u.unblock_why as unblock_why
 		FROM unblocklog u, blocklog b
 		WHERE u.unblock_id = b.block_id and NOT u.unblock_notified;
+		ORDER BY unblock_when
 		};
 	return $self->fetchall_arrayref($sql);
 }
