@@ -224,7 +224,7 @@ sub block_notify_queue {
 		l.blocklist_until as until
 		FROM blocklog b, blocklist l
 		WHERE b.block_id = l.blocklist_id AND NOT b.block_notified
-		ORDER BY when
+		ORDER BY "when"
 	};
 	return $self->fetchall_arrayref($sql);
 }
