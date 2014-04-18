@@ -194,7 +194,7 @@ sub send_digest {
 	my $emailbody = "Block totals:\n";
 	my $stats = $self->{db}->stats();
 	foreach my $row (@{$stats}) {
-		$emailbody .= "$row->{who}	$row->{count}\n";
+		$emailbody .= sprintf("%-15s %s\n", $row->{who}, $row->{count});
 	}
 	$emailbody .= "\nActivity since last digest:\nBlocked: $block_count\nUnblocked: $unblock_count\n\n\n";
 	
