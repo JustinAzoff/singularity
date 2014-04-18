@@ -191,7 +191,12 @@ sub send_digest {
 
 	#build email body
 	#print activity counts
-	my $emailbody = "Activity since last digest:\nBlocked: $block_count\nUnblocked: $unblock_count\n";
+	my $emailbody = "Block totals:\n";
+	my $stats = $self->{db}->stats();
+	foreach my $row (@{$stats}) {
+		$emailbody .= "$row->{who}	$row->{count}\n";
+	}
+	$emailbody .= "\nActivity since last digest:\nBlocked: $block_count\nUnblocked: $unblock_count\n";
 	
 	#add blocked notifications to email body
 	foreach my $b (@{ $block_notify }) {
