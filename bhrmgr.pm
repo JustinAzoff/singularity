@@ -67,7 +67,7 @@ sub remove_block
 }
 
 sub reconcile {
-    my $self = shift;
+	my ($self, $force) = @_;
 	my @db_ips = $self->{db}->list_ips();
 	my @rtr_ips = $self->{rtr}->get_blocked_ips();
 	
@@ -85,7 +85,7 @@ sub reconcile {
 	my $reconcile_max = $self->{config}->{'reconcile_max'};
 	my $missing_rtr_count = scalar(@missing_rtr);
 	my $missing_db_count = scalar(@missing_db);
-	if($missing_rtr_count + $missing_db_count > $reconcile_max) {
+	if($force != 1 && $missing_rtr_count + $missing_db_count > $reconcile_max) {
 		$self->log("error", "reconcile", "Missing too many entries db=$missing_db_count rtr=$missing_rtr_count");
 		return 1;
 	}

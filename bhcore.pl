@@ -122,8 +122,9 @@ sub cli_history {
 	return 0;
 }
 sub cli_reconcile {
-	my ($mgr) = @_;
-	my ($missing_db, $missing_rtr) = $mgr->reconcile();
+	my ($mgr, $args) = @_;
+	my $force = (defined $args->[1] && $args->[1] eq "force");
+	my ($missing_db, $missing_rtr) = $mgr->reconcile($force);
 	foreach my $ip (@{ $missing_db }) {
 		print "$ip is missing from the db\n";
 	}
@@ -169,7 +170,7 @@ Usage:
 	$0 history ip_address
 	$0 query ip_address
 	$0 list
-	$0 reconcile
+	$0 reconcile [force]
 	$0 cronjob
 	$0 digest
 USAGE
@@ -192,7 +193,7 @@ sub main
 	return cli_list($mgr)             if $func eq "list";
 	return cli_query($mgr, \@ARGV)    if $func eq "query";
 	return cli_history($mgr, \@ARGV)  if $func eq "history";
-	return cli_reconcile($mgr)        if $func eq "reconcile";
+	return cli_reconcile($mgr, \@ARGV)if $func eq "reconcile";
 	return cli_cronjob($mgr)          if $func eq "cronjob";
 	return cli_digest($mgr)           if $func eq "digest";
 
