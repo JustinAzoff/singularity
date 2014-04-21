@@ -127,8 +127,8 @@ sub write_website {
 	my $block_count = scalar(@{$blocklist});
 
 	#Write out csv files
-	my $csv = "";
-	my $csv_priv = "";
+	my $csv = "ip,when,expire\n";
+	my $csv_priv = "ip,who,why,when,expire\n";
 	foreach my $b (@{ $blocklist }) {
 		$csv      .= "$b->{ip},$b->{when},$b->{until}\n";
 		$csv_priv .= "$b->{ip},$b->{who},$b->{why},$b->{when},$b->{until}\n";
