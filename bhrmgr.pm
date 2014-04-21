@@ -196,7 +196,7 @@ sub send_digest {
 	foreach my $row (@{$stats}) {
 		$emailbody .= sprintf("%-15s %s\n", $row->{who}, $row->{count});
 	}
-	$emailbody .= "\nActivity since last digest:\nBlocked: $block_count\nUnblocked: $unblock_count\n";
+	$emailbody .= "\nActivity since last digest:\nBlocked: $block_count\nUnblocked: $unblock_count\n\n\n";
 	
 	#add blocked notifications to email body
 	foreach my $b (@{ $block_notify }) {
