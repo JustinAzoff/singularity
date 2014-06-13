@@ -189,6 +189,8 @@ sub send_digest {
 	#nothing to do
 	return 0 if($block_count + $unblock_count == 0);
 
+	$self->log("info", "DELTA", "BLOCKED=${block_count} UNBLOCKED=${unblock_count}");
+
 	#build email body
 	#print activity counts
 	my $emailbody = "Block totals:\n";
