@@ -45,6 +45,11 @@ my $binlocation = "/services/blackhole/bin/";
 
 my $q = new CGI;			# create new CGI object
 
+sub trim {
+	(my $s = $_[0]) =~ s/^\s+|\s+$//g;
+	return $s;
+}
+
 sub page_header {
 	print		$q->header;		 # create the HTTP header
 	print		$q->start_html('Singularity Blackhole System');	# start the HTML
@@ -79,7 +84,7 @@ sub web_reconcile {
 sub web_query {
 	my $mgr = shift;
 	my $out = "";
-	my $ip = $q->param("ip");
+	my $ip = trim($q->param('ip'));
 	my $ipversion = ip_version($ip);
 	return "Invalid IP Address" if (!$ipversion);
 	my $b = $mgr->{db}->query($ip);
@@ -94,7 +99,7 @@ sub web_query {
 
 sub web_add {
 	my $mgr = shift;
-	my $ip = $q->param('ip');
+	my $ip = trim($q->param('ip'));
 	my $reason = $q->param('reason');
 	my $duration = $q->param('duration');
 
@@ -108,7 +113,7 @@ sub web_add {
 }
 sub web_remove {
 	my $mgr = shift;
-	my $ip = $q->param('ip');
+	my $ip = trim($q->param('ip'));
 	my $reason = $q->param('reason');
 
 	my $ipversion = ip_version($ip);
