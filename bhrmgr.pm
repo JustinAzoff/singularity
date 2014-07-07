@@ -40,7 +40,7 @@ sub log {
 sub add_block {
 	my ($self, $ipaddress, $service, $reason, $duration) = @_;
 
-	return 1 if ($self->{db}->is_ip_blocked($ipaddress));
+	return 0 if ($self->{db}->is_ip_blocked($ipaddress));
 	my $hostname = reverse_lookup($ipaddress);
 
 	$self->{db}->block($ipaddress, $hostname, $service, $reason, $duration);
