@@ -51,7 +51,7 @@ sub add_block {
 	my $endtime = 0;
 	my $seconds = expand_duration($duration);
 	$endtime = (time()+$seconds) if $seconds;
-	$self->log("info", "BLOCK", "IP=$ipaddress HOSTNAME=$log_hostname WHO=$service WHY=$reason UNTIL=$endtime");
+	$self->log("info", "BLOCK", "IP=$ipaddress HOSTNAME=$log_hostname WHO=$service WHY=\"$reason\" UNTIL=$endtime");
 	return 0;
 }
 
@@ -64,7 +64,7 @@ sub remove_block
 
 	$self->{rtr}->nullroute_remove($ipaddress);
 
-	$self->log("info", "UNBLOCK", "IP=$ipaddress WHO=$service WHY=$reason");
+	$self->log("info", "UNBLOCK", "IP=$ipaddress WHO=$service WHY=\"$reason\"");
 	return 0;
 }
 
