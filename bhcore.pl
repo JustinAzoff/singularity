@@ -55,11 +55,12 @@ sub cli_add
 	my $ipaddress = $args->[2];
 	my $reason = $args->[3];
 	my $howlong = $args->[4];
+	my $autoscale = $args->[5];
 
 	my $ipversion = ip_version($ipaddress);
 	usage("Invalid IP Address") if (!$ipversion);
     
-	return $mgr->add_block($ipaddress, $servicename, $reason, $howlong);
+	return $mgr->add_block($ipaddress, $servicename, $reason, $howlong, $autoscale);
 }
 
 sub cli_remove
@@ -165,7 +166,7 @@ sub usage
 	print "$extra\n" if $extra;
 	print <<USAGE;
 Usage:
-	$0 add Service_Name IPaddress "Reason" How_long_in_seconds
+	$0 add Service_Name IPaddress "Reason" How_long_in_seconds autoscale
 	$0 remove Service_Name IPaddress "Reason" How_long_in_seconds
 	$0 history ip_address
 	$0 query ip_address
@@ -180,7 +181,7 @@ USAGE
 sub main
 {
 	my $num_args = $#ARGV + 1;
-	usage("Missing arguments") if (($num_args == 0) || ($num_args > 5));
+	usage("Missing arguments") if (($num_args == 0) || ($num_args > 6));
 
 	my $configfile = $ENV{BHR_CFG} || "/services/blackhole/bin/bhr.cfg";
 	my %config;

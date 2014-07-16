@@ -108,7 +108,7 @@ sub web_add {
 	return "Missing reason" if ($reason eq "");
 	return "Missing duration" if ($duration eq "");
 
-	$mgr->add_block($ip, $user, $reason, $duration);
+	$mgr->add_block($ip, $user, $reason, $duration, 0);
 	return "Blocking $ip for user $user for reason $reason for $duration";
 }
 sub web_remove {
