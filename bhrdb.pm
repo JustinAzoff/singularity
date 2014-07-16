@@ -155,6 +155,31 @@ sub query {
 	$sth->execute($ip) or die $dbh->errstr;
 	return $sth->fetchrow_hashref();
 }
+
+sub get_last_record {
+	my ($self, $ip) = @_;
+	#grab the most recent block record for an ip
+	#including the block duration and the block age
+	my $dbh = $self->{dbh};
+	my $sql =
+		q{
+		SELECT
+			b.block_who as who, b.block_why as why,
+			b.block_when as when, l.blocklist_until as until,
+			extract(epoch from (l.blocklist_until - b.block_when)) / 86400 as duration,
+			extract(epoch from age(b.block_when)) / 86400 as age
+		FROM
+			blocklog b
+			left join unblocklog u on b.block_id = u.unblock_id
+			left join blocklist l on b.block_id=l.blocklist_id
+			WHERE b.block_ipaddress = ?
+			ORDER BY b.block_when DESC
+			LIMIT 1
+		};
+	my $sth = $dbh->prepare($sql) or die $dbh->errstr;
+	$sth->execute($ip) or die $dbh->errstr;
+	return $sth->fetchrow_hashref();
+}
 sub history {
 	my ($self, $ip) = @_;
 	#database read in information for a specific IP
