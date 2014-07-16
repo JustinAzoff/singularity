@@ -44,20 +44,22 @@ sub scale_duration {
 	print "Scale this duration of $seconds based on a last duration of $duration from $age ago\n";
 
 	my $time_multiplier = $self->{config}->{time_multiplier};
+	my $penalty_time_multiplier = $self->{config}->{penalty_time_multiplier};
 	my $return_to_base_multiplier = $self->{config}->{return_to_base_multiplier};
+	my $return_to_base_factor = $self->{config}->{return_to_base_factor};
 
-	#high repeat offender
+	#short time frame repeat offender
 	if($age <= $time_multiplier * $duration) {
-		return $time_multiplier * $duration;
+		return $penalty_time_multiplier * $duration;
 	}
 
-	#low repeat offender
+	#medium time frame repeat offender
 	if($age <= $time_multiplier * $return_to_base_multiplier * $duration) {
 		return $duration;
 	}
 
 	#regular repeat offender
-	return max($seconds, $duration/2);
+	return max($seconds, $duration/$return_to_base_factor);
 }
 
 sub add_block {
