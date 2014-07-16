@@ -166,8 +166,8 @@ sub get_last_record {
 		SELECT
 			b.block_who as who, b.block_why as why,
 			b.block_when as when, l.blocklist_until as until,
-			extract(epoch from (l.blocklist_until - b.block_when)) / 86400 as duration,
-			extract(epoch from age(b.block_when)) / 86400 as age
+			extract(epoch from (u.unblock_when - b.block_when)) as duration,
+			extract(epoch from (now() - u.unblock_when)) as age
 		FROM
 			blocklog b
 			left join unblocklog u on b.block_id = u.unblock_id
