@@ -80,7 +80,7 @@ sub add_block {
 	my $log_hostname = $hostname || "null";
 	my $endtime = 0;
 	$endtime = (time()+$seconds) if $seconds;
-	$self->log("info", "BLOCK", "IP=$ipaddress HOSTNAME=$log_hostname WHO=$service WHY=\"$reason\" UNTIL=$endtime");
+	$self->log("info", "BLOCK", "IP=$ipaddress HOSTNAME=$log_hostname WHO=$service WHY=\"$reason\" UNTIL=$endtime DURATION=$seconds");
 	return 0;
 }
 
