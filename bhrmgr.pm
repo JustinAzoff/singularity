@@ -40,8 +40,8 @@ sub log {
 sub max ($$) { $_[$_[0] < $_[1]] }
 
 sub scale_duration {
-	my ($self, $seconds, $age, $duration) = @_;
-	print "Scale this duration of $seconds based on a last duration of $duration from $age ago\n";
+	my ($self, $age, $duration) = @_;
+	print "Scale this duration based on a last duration of $duration from $age ago\n";
 
 	my $time_multiplier = $self->{config}->{time_multiplier};
 	my $penalty_time_multiplier = $self->{config}->{penalty_time_multiplier};
@@ -59,7 +59,7 @@ sub scale_duration {
 	}
 
 	#regular repeat offender
-	return max($seconds, $duration/$return_to_base_factor);
+	return $duration/$return_to_base_factor;
 }
 
 sub add_block {
@@ -70,7 +70,7 @@ sub add_block {
 
 	my $seconds = expand_duration($duration);
 	if($autoscale and my $last_record = $self->{db}->get_last_record($ipaddress)) {
-		$seconds = $self->scale_duration($seconds, $last_record->{age}, $last_record->{duration});
+		$seconds = max($seconds, $self->scale_duration($last_record->{age}, $last_record->{duration}));
 		print "Scaled result = $seconds\n";
 	}
 	$self->{db}->block($ipaddress, $hostname, $service, $reason, $seconds);
