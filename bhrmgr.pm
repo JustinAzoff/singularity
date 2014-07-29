@@ -51,7 +51,7 @@ sub scale_duration {
 	my $return_to_base_factor = $self->{config}->{return_to_base_factor};
 
 	#short time frame repeat offender
-	if($age <= min($minimum_time_window, $time_window_factor * $duration)) {
+	if($age <= max($minimum_time_window, $time_window_factor * $duration)) {
 		return $penalty_time_multiplier * $duration;
 	}
 
