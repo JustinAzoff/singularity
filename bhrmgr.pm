@@ -37,19 +37,21 @@ sub log {
 	return $self->{logger}->log($priority, $type, $msg);
 }
 
+sub min ($$) { $_[$_[0] > $_[1]] }
 sub max ($$) { $_[$_[0] < $_[1]] }
 
 sub scale_duration {
 	my ($self, $age, $duration) = @_;
 	print "Scale this duration based on a last duration of $duration from $age ago\n";
 
+	my $minimum_time_window = $self->{config}->{minimum_time_window};
 	my $time_window_factor = $self->{config}->{time_window_factor};
 	my $penalty_time_multiplier = $self->{config}->{penalty_time_multiplier};
 	my $return_to_base_multiplier = $self->{config}->{return_to_base_multiplier};
 	my $return_to_base_factor = $self->{config}->{return_to_base_factor};
 
 	#short time frame repeat offender
-	if($age <= $time_window_factor * $duration) {
+	if($age <= min($minimum_time_window, $time_window_factor * $duration)) {
 		return $penalty_time_multiplier * $duration;
 	}
 
