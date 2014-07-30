@@ -236,7 +236,7 @@ sub send_digest {
 	#add blocked notifications to email body
 	foreach my $b (@{ $block_notify }) {
 		my $reverse = $b->{reverse} || "none";
-		$emailbody .= "BLOCK - $b->{when} - $b->{who} - $b->{ip} - $reverse - $b->{why} $b->{until}\n";
+		$emailbody .= "BLOCK - $b->{when} - $b->{who} - $b->{ip} - $reverse - $b->{why} - $b->{until} - $b->{duration}\n";
 		$self->{db}->mark_block_notified($b->{block_id});
 	}
 	foreach my $b (@{ $unblock_notify }) {

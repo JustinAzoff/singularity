@@ -246,7 +246,8 @@ sub block_notify_queue {
 	my $sql = q{
 		SELECT
 		b.block_id, b.block_when as when, b.block_who as who, b.block_ipaddress as ip, b.block_reverse as reverse, b.block_why as why,
-		l.blocklist_until as until
+		l.blocklist_until as until,
+		l.blocklist_until - b.block_when as duration
 		FROM blocklog b, blocklist l
 		WHERE b.block_id = l.blocklist_id AND NOT b.block_notified
 		ORDER BY "when"
