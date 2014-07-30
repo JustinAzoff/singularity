@@ -241,7 +241,7 @@ sub send_digest {
 	}
 	foreach my $b (@{ $unblock_notify }) {
 		my $reverse = $b->{reverse} || "none";
-		$emailbody .= "UNBLOCK - $b->{unblock_when} - $b->{unblock_who} - $b->{unblock_why} - $b->{ip} - $reverse"; #no newline
+		$emailbody .= "UNBLOCK - $b->{unblock_when} - $b->{duration} - $b->{unblock_who} - $b->{unblock_why} - $b->{ip} - $reverse"; #no newline
 		$emailbody .= " Originally Blocked by: $b->{block_who} for $b->{block_why}\n";
 		$self->{db}->mark_unblock_notified($b->{block_id});
 	}

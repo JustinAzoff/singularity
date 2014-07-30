@@ -260,7 +260,8 @@ sub unblock_notify_queue {
 		q{
 		SELECT
 		b.block_id, b.block_ipaddress as ip, b.block_reverse as reverse, b.block_who as block_who, b.block_why as block_why,
-		u.unblock_when as unblock_when, u.unblock_who as unblock_who, u.unblock_why as unblock_why
+		u.unblock_when as unblock_when, u.unblock_who as unblock_who, u.unblock_why as unblock_why,
+		u.unblock_when - b.block_when as duration
 		FROM unblocklog u, blocklog b
 		WHERE u.unblock_id = b.block_id and NOT u.unblock_notified
 		ORDER BY unblock_when
