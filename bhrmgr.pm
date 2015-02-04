@@ -5,6 +5,7 @@ use strict;
 use POSIX qw(strftime);
 use Email::MIME;
 use Email::Sender::Simple qw(sendmail);
+use Text::CSV;
 
 use bhrdb qw(BHRDB);
 use logutil qw(Logger);
@@ -159,12 +160,17 @@ sub write_website {
 	my $blocklist = $self->{db}->list;
 	my $block_count = scalar(@{$blocklist});
 
+	my $csv_writer = Text::CSV->new ( { binary => 1 } );
+
 	#Write out csv files
 	my $csv = "ip,when,expire\n";
 	my $csv_priv = "ip,who,why,when,expire\n";
 	foreach my $b (@{ $blocklist }) {
-		$csv      .= "$b->{ip},$b->{when},$b->{until}\n";
-		$csv_priv .= "$b->{ip},$b->{who},$b->{why},$b->{when},$b->{until}\n";
+		$csv_writer->combine($b->{ip},$b->{when},$b->{until});
+		$csv .= $csv_writer->string() . "\n";
+
+		$csv_writer->combine($b->{ip},$b->{who},$b->{why},$b->{when},$b->{until});
+		$csv_priv .= $csv_writer->string() . "\n";
 	}
 
 	write_file($fn_csv, $csv);
