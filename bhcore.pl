@@ -76,7 +76,7 @@ sub cli_remove
 	my $ipversion = ip_version($ipaddress);
 	usage("Invalid IP Address") if (!$ipversion);
 
-	return $mgr->remove_block($ipaddress,$reason,$servicename);
+	return $mgr->remove_block($ipaddress,$servicename,$reason);
 }
 
 sub cli_list

@@ -123,7 +123,7 @@ sub web_remove {
 	my $info = $mgr->{db}->query($ip);
 	return "$ip is not blocked" if(!$info);
 
-	$mgr->remove_block($ip, $reason, $user);
+	$mgr->remove_block($ip, $user, $reason);
 	return "Unblocking $ip for user $user for reason $reason";
 }
 
